@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { supabaseKeel } from "../lib/supabaseKeel";
 import { mockClients, mockLinks, mockIncome, mockFocusItems, mockExpenses, mockInvoices, mockActivityFeed, mockNotifications } from "../data/mock";
 
 function toCamelCase(obj) {
@@ -35,6 +36,9 @@ export function DataProvider({ children }) {
   const [focusItems, setFocusItems] = useState(isSupabase ? [] : mockFocusItems);
   const [activityFeed, setActivityFeed] = useState(mockActivityFeed);
   const [notifications, setNotifications] = useState(isSupabase ? [] : mockNotifications);
+  const [keelShops, setKeelShops] = useState([]);
+  const [keelApprovals, setKeelApprovals] = useState([]);
+  const [keelActivityLog, setKeelActivityLog] = useState([]);
 
   // Fetch all data from Supabase on mount
   useEffect(() => {
@@ -66,8 +70,8 @@ export function DataProvider({ children }) {
         }
       });
 
-      // Also fetch activity feed
-      const { data: feedData } = await supabase.from("keel_activity_log").select("*").order("timestamp", { ascending: false }).limit(20);
+      // Also fetch activity feed from FrameStudio's keel_activity_log
+      const { data: feedData } = await supabase.from("keel_activity_log").select("*").order("timestamp", { ascending: false }).limit(50);
       if (!cancelled && feedData) {
         const mapped = feedData.map((l) => ({
           id: l.id,
@@ -78,6 +82,27 @@ export function DataProvider({ children }) {
           link: "/keel",
         }));
         setActivityFeed((prev) => [...mapped, ...prev]);
+      }
+
+      // Fetch keel data from Keel's own Supabase project
+      if (supabaseKeel) {
+        const keelTables = [
+          { key: "keelShops", table: "keel_shops" },
+          { key: "keelApprovals", table: "keel_approvals" },
+          { key: "keelActivityLog", table: "keel_activity_log" },
+        ];
+        const keelResults = await Promise.allSettled(
+          keelTables.map((t) => supabaseKeel.from(t.table).select("*").order("created_at", { ascending: false }))
+        );
+        if (!cancelled) {
+          keelResults.forEach((result, i) => {
+            const key = keelTables[i].key;
+            if (result.status === "fulfilled" && result.value.data) {
+              const setter = { setKeelShops, setKeelApprovals, setKeelActivityLog }[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
+              if (setter) setter(result.value.data.map(toCamelCase));
+            }
+          });
+        }
       }
 
       if (!cancelled) setReady(true);
@@ -335,9 +360,58 @@ export function DataProvider({ children }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, [isSupabase]);
 
+  // --- KEEL ---
+  const approveShop = useCallback(async (id) => {
+    const approval = keelApprovals.find((a) => a.id === id);
+    if (!approval) return;
+    if (supabaseKeel) {
+      await supabaseKeel.from("keel_approvals").update({ status: "approved" }).eq("id", id);
+      await supabaseKeel.from("keel_shops").update({ status: "active" }).eq("name", approval.shopName);
+      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
+        action: "approval", shop: approval.shopName, detail: "Approved by admin", timestamp: new Date().toISOString(),
+      }).select().single();
+      setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "approved" } : a));
+      setKeelShops((prev) => prev.map((s) => s.name === approval.shopName ? { ...s, status: "active" } : s));
+      if (logEntry) {
+        const c = toCamelCase(logEntry);
+        setKeelActivityLog((prev) => [c, ...prev]);
+        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+      }
+      return;
+    }
+    setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "approved" } : a));
+    setKeelShops((prev) => prev.map((s) => s.name === approval.shopName ? { ...s, status: "active" } : s));
+    const logEntry = { id: crypto.randomUUID?.() || String(Date.now()), action: "approval", shop: approval.shopName, detail: "Approved by admin", timestamp: new Date().toISOString() };
+    setKeelActivityLog((prev) => [logEntry, ...prev]);
+    setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
+  }, [keelApprovals]);
+
+  const rejectShop = useCallback(async (id) => {
+    const approval = keelApprovals.find((a) => a.id === id);
+    if (!approval) return;
+    if (supabaseKeel) {
+      await supabaseKeel.from("keel_approvals").update({ status: "rejected" }).eq("id", id);
+      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
+        action: "flag", shop: approval.shopName, detail: "Shop registration rejected", timestamp: new Date().toISOString(),
+      }).select().single();
+      setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected" } : a));
+      if (logEntry) {
+        const c = toCamelCase(logEntry);
+        setKeelActivityLog((prev) => [c, ...prev]);
+        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+      }
+      return;
+    }
+    setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected" } : a));
+    const logEntry = { id: crypto.randomUUID?.() || String(Date.now()), action: "flag", shop: approval.shopName, detail: "Shop registration rejected", timestamp: new Date().toISOString() };
+    setKeelActivityLog((prev) => [logEntry, ...prev]);
+    setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
+  }, [keelApprovals]);
+
   return (
     <DataContext.Provider value={{
       ready, clients, links, income, expenses, invoices, focusItems, activityFeed, notifications,
+      keelShops, keelApprovals, keelActivityLog,
       addClient, updateClient, deleteClient,
       addLink, updateLink, deleteLink,
       addIncome, updateIncome, deleteIncome,
@@ -346,6 +420,7 @@ export function DataProvider({ children }) {
       addFocusItem, updateFocusItem, toggleFocusItem, reorderFocusItems, deleteFocusItem,
       pushActivity, pushNotification,
       markNotificationRead, markAllNotificationsRead,
+      approveShop, rejectShop,
     }}>
       {!ready ? (
         <div className="flex items-center justify-center h-screen bg-slate-100 dark:bg-[#0f172a]">

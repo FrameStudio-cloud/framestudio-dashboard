@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IoAdd, IoTrashOutline, IoCreateOutline, IoChevronDown, IoChevronUp, IoCheckmarkCircle, IoEllipseOutline } from "react-icons/io5";
 import { FaWhatsapp } from "react-icons/fa";
 import { FiExternalLink, FiGitBranch } from "react-icons/fi";
@@ -44,16 +44,22 @@ export default function Clients() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { clients, invoices, income, addClient, updateClient, deleteClient, updateInvoice } = useData();
-  const [modalOpen, setModalOpen] = useState(false);
+  const actionAdd = searchParams.get("action") === "add";
+  const nameFilter = searchParams.get("name");
+  const statusFilter = searchParams.get("status");
+  const stageFilter = searchParams.get("stage");
+
+  const [modalOpen, setModalOpen] = useState(actionAdd);
   const [editing, setEditing] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [notesInput, setNotesInput] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
 
-  const nameFilter = searchParams.get("name");
-  const statusFilter = searchParams.get("status");
-  const stageFilter = searchParams.get("stage");
-  const actionAdd = searchParams.get("action") === "add";
+  useEffect(() => {
+    if (actionAdd) {
+      navigate("/clients", { replace: true });
+    }
+  }, []);
 
   const filtered = clients.filter((c) => {
     if (nameFilter && !c.name.toLowerCase().includes(nameFilter.toLowerCase())) return false;
@@ -62,12 +68,6 @@ export default function Clients() {
     if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase()) && !c.business.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
-
-  if (actionAdd && !modalOpen) {
-    setEditing(null);
-    setTimeout(() => setModalOpen(true), 0);
-    navigate("/clients", { replace: true });
-  }
 
   const openAdd = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (client) => { setEditing(client); setModalOpen(true); };

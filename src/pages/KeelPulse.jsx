@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { IoCheckmarkCircle, IoCloseCircle, IoPulseOutline } from "react-icons/io5";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import StatusBadge from "../components/StatusBadge";
-import { mockKeelPulse, revenueByPlan } from "../data/mock";
+import { useData } from "../context/DataContext";
+import { revenueByPlan } from "../data/mock";
 
 function formatKES(amount) {
   return `KES ${amount.toLocaleString()}`;
@@ -45,37 +46,22 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const [keelData, setKeelData] = useState(mockKeelPulse);
-  const { activeShops, pendingApprovals, flaggedIssues, monthlySubscriptionRevenue, shops, approvals, activityLog } = keelData;
-  const [localApprovals, setLocalApprovals] = useState(approvals);
+  const { keelShops, keelApprovals, keelActivityLog, approveShop, rejectShop } = useData();
   const [activeTab, setActiveTab] = useState("overview");
+
+  const activeShops = useMemo(() => keelShops.filter((s) => s.status === "active").length, [keelShops]);
+  const pendingApprovals = useMemo(() => keelApprovals.filter((a) => a.status === "pending").length, [keelApprovals]);
+  const flaggedIssues = useMemo(() => keelActivityLog.filter((l) => l.action === "flag").length, [keelActivityLog]);
+  const monthlySubscriptionRevenue = useMemo(() =>
+    keelShops.reduce((sum, s) => sum + (s.revenue || 0), 0),
+  [keelShops]);
 
   const statusData = [
     { name: "Active", value: activeShops },
     { name: "Pending", value: pendingApprovals },
   ];
 
-  const handleApprove = (id) => {
-    setLocalApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status: "approved" } : a)));
-    setKeelData((prev) => ({
-      ...prev,
-      pendingApprovals: prev.pendingApprovals - 1,
-      activeShops: prev.activeShops + 1,
-      approvals: prev.approvals.map((a) => (a.id === id ? { ...a, status: "approved" } : a)),
-      activityLog: [{ id: `l-new-${Date.now()}`, action: "approval", shop: prev.approvals.find((a) => a.id === id)?.shopName || "Unknown", detail: "Approved by admin", timestamp: new Date().toISOString() }, ...prev.activityLog],
-    }));
-  };
-
-  const handleReject = (id) => {
-    setLocalApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status: "rejected" } : a)));
-    setKeelData((prev) => ({
-      ...prev,
-      pendingApprovals: prev.pendingApprovals - 1,
-      approvals: prev.approvals.map((a) => (a.id === id ? { ...a, status: "rejected" } : a)),
-    }));
-  };
-
-  const pendingList = localApprovals.filter((a) => a.status === "pending");
+  const pendingList = useMemo(() => keelApprovals.filter((a) => a.status === "pending"), [keelApprovals]);
 
   return (
     <PageLayout title="Keel Pulse">
@@ -144,7 +130,7 @@ export default function KeelPulse() {
                     </tr>
                   </thead>
                   <tbody>
-                    {shops.map((shop) => (
+                    {keelShops.map((shop) => (
                       <tr key={shop.name} className="border-b border-gray-50 dark:border-white/5 last:border-0">
                         <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">{shop.name}</td>
                         <td className="px-4 py-3"><StatusBadge status={shop.status === "active" ? "delivered" : "pending"} label={shop.status === "active" ? "Active" : "Pending"} /></td>
@@ -156,7 +142,7 @@ export default function KeelPulse() {
                 </table>
               </div>
               <div className="md:hidden divide-y divide-gray-50 dark:divide-white/5">
-                {shops.map((shop) => (
+                {keelShops.map((shop) => (
                   <div key={shop.name} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
@@ -195,10 +181,10 @@ export default function KeelPulse() {
                         <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">Submitted {timeAgo(approval.submittedAt)}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleApprove(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-lg px-3 py-1.5 hover:bg-green-500 transition-colors">
+                        <button onClick={() => approveShop(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-lg px-3 py-1.5 hover:bg-green-500 transition-colors">
                           <IoCheckmarkCircle size={12} /> Approve
                         </button>
-                        <button onClick={() => handleReject(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-red-600 text-white rounded-lg px-3 py-1.5 hover:bg-red-500 transition-colors">
+                        <button onClick={() => rejectShop(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-red-600 text-white rounded-lg px-3 py-1.5 hover:bg-red-500 transition-colors">
                           <IoCloseCircle size={12} /> Reject
                         </button>
                       </div>
@@ -212,13 +198,13 @@ export default function KeelPulse() {
               </div>
             )}
 
-            {localApprovals.filter((a) => a.status !== "pending").length > 0 && (
+            {keelApprovals.filter((a) => a.status !== "pending").length > 0 && (
               <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-white">History</h3>
                 </div>
                 <div className="divide-y divide-gray-50 dark:divide-white/5">
-                  {localApprovals.filter((a) => a.status !== "pending").map((approval) => (
+                  {keelApprovals.filter((a) => a.status !== "pending").map((approval) => (
                     <div key={approval.id} className="flex items-center justify-between px-4 py-3">
                       <div>
                         <p className="text-sm font-medium text-gray-800 dark:text-white">{approval.shopName}</p>
@@ -236,11 +222,11 @@ export default function KeelPulse() {
         {activeTab === "activity" && (
           <>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-400 dark:text-slate-500">{activityLog.length} events</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">{keelActivityLog.length} events</p>
             </div>
             <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl shadow-sm overflow-hidden">
               <div className="divide-y divide-gray-50 dark:divide-white/5">
-                {activityLog.map((log) => (
+                {keelActivityLog.map((log) => (
                   <div key={log.id} className="flex items-start gap-3 px-4 py-3">
                     <span className="text-lg flex-shrink-0">{actionIcons[log.action] || "•"}</span>
                     <div className="flex-1 min-w-0">

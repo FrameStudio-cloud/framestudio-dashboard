@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IoAdd, IoTrashOutline, IoClose, IoDownloadOutline } from "react-icons/io5";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
@@ -49,21 +49,21 @@ export default function Finances() {
   const navigate = useNavigate();
   const { income, expenses, clients, addIncome, deleteIncome, addExpense, deleteExpense, invoices, updateInvoice } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [modalOpen, setModalOpen] = useState(false);
+  const actionAdd = searchParams.get("action") === "add";
+  const clientFilter = searchParams.get("client");
+  const filterMonth = searchParams.get("month");
+
+  const [modalOpen, setModalOpen] = useState(actionAdd);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("income");
   const [expenseForm, setExpenseForm] = useState({ description: "", amount: "", category: "Hosting", date: "", paymentMethod: "M-Pesa" });
 
-  const clientFilter = searchParams.get("client");
-  const filterMonth = searchParams.get("month");
-  const actionAdd = searchParams.get("action") === "add";
-
-  if (actionAdd && !modalOpen) {
-    setActiveTab("income");
-    setTimeout(() => setModalOpen(true), 0);
-    navigate("/finances", { replace: true });
-  }
+  useEffect(() => {
+    if (actionAdd) {
+      navigate("/finances", { replace: true });
+    }
+  }, []);
 
   const thisMonthIncome = income.filter((i) => i.date.startsWith("2026-06")).reduce((s, i) => s + i.amount, 0);
   const lastMonthIncome = income.filter((i) => i.date.startsWith("2026-05")).reduce((s, i) => s + i.amount, 0);

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Admin dashboard for a web dev/design agency (FrameStudio). Built as a full-featured shell with mock data, wired to Supabase auth.
+Admin dashboard for a web dev/design agency (FrameStudio). Built as a full-featured shell with mock data, wired to Supabase auth + CRUD.
 
 ## Stack
 
@@ -10,13 +10,13 @@ Admin dashboard for a web dev/design agency (FrameStudio). Built as a full-featu
 - react-router-dom v7 (lazy-loaded routes)
 - recharts (charts)
 - react-icons (icons)
-- @supabase/supabase-js (auth)
+- @supabase/supabase-js (auth + database)
 - @tanstack/react-query (configured but not heavily used yet)
 
 ## Key Architecture
 
-- **`src/data/mock.js`** — All mock/seed data. Single source of truth for demo data.
-- **`src/context/DataContext.jsx`** — Full CRUD for all entities (clients, links, income, expenses, invoices, focusItems). Pushes activity feed entries and notifications automatically on creates. No backend calls — pure `useState`.
+- **`src/data/mock.js`** — All mock/seed data shapes. Single source of truth for demo data.
+- **`src/context/DataContext.jsx`** — Central CRUD layer. Calls Supabase on every mutation and falls back to `useState` + mock data when Supabase env vars are missing. Applies `toCamelCase()` on reads (snake_case DB → camelCase components) and `toSnakeCase()` on writes (camelCase forms → snake_case DB).
 - **`src/context/AuthContext.jsx`** — Supabase auth. Falls back gracefully if env vars missing (`supabase === null`). When supabase is null, app skips login and shows dashboard directly.
 - **`src/lib/supabase.js`** — Creates Supabase client from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
 
@@ -41,7 +41,7 @@ Admin dashboard for a web dev/design agency (FrameStudio). Built as a full-featu
 | `/reports` | Reports | Monthly, per-client, outstanding — PDF/CSV export |
 | `/login` | Login | Sign in / Sign up with Supabase auth |
 
-## What's Complete (Shell — All Mock Data)
+## Complete Features
 
 - **Dashboard**: 4 KPI cards, revenue chart (week/month toggle), client status pipeline, activity feed, deadlines, quick-actions, recent transactions, focus widget
 - **Clients**: Directory with search/status filter, expandable profile with stage pipeline (5 steps), invoice history, payment history, notes log, one-click links (WhatsApp/site/repo/Supabase/Vercel)
@@ -64,6 +64,12 @@ Admin dashboard for a web dev/design agency (FrameStudio). Built as a full-featu
 - Email sending (invoices, notifications)
 - M-Pesa integration
 - Role-based access / multi-user
+
+## Known Gotchas
+
+- **snake_case ↔ camelCase**: DataContext.jsx handles mapping via `toCamelCase()` (DB → UI) and `toSnakeCase()` (UI → DB). If you see `Cannot read properties of undefined (reading 'toLocaleString')`, it's likely a missing mapping. Wrap Supabase results with `toCamelCase()` and form data with `toSnakeCase()`.
+- **formatKES**: Always use `(amount || 0).toLocaleString()` — never assume the value is a number.
+- **Auth UUID**: `lewisirungu489@gmail.com` → `3c758dfd-8bb0-4654-8d30-3ca8225a0381`. Use this for seed data and manual queries.
 
 ## Commands
 
@@ -97,7 +103,14 @@ npm run lint     # ESLint
 - **Project ref**: `sjhwllnhuozxeplpygnc`
 - **CLI linked**: yes (PAT: `sbp_8d8bbdf3cbc6fb15fcc297234075ef9a19e95772`)
 - **Tables**: 10 — `clients`, `links`, `income`, `expenses`, `invoices`, `focus_items`, `notifications`, `keel_shops`, `keel_approvals`, `keel_activity_log`
-- **RLS**: Enabled on all tables with per-user policies
+- **RLS**: Enabled on all tables — per-user policies for user-owned tables, authenticated-role for keel tables
 - **Data API**: `authenticated` role granted access
 
 Run `supabase db query --file <file.sql>` to execute SQL directly via CLI.
+
+## Obsidian Vault
+
+- **Vault path**: `C:\Users\Administrator\Documents\Dev notes`
+- **MCP server**: `@bitbonsai/mcpvault@latest` (configured in `~/.config/opencode/opencode.json`)
+- **Dashboard docs**: `Framestudio/` folder — `Framestudio Dashboard.md`, `Framestudio Architecture.md`, `Supabase.md`, `Troubleshoot and Incidents.md`
+- All notes linked from `05-framestudio.md`
