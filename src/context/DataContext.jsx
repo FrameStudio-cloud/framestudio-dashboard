@@ -38,6 +38,7 @@ export function DataProvider({ children }) {
   const [notifications, setNotifications] = useState(isSupabase ? [] : mockNotifications);
   const [keelShops, setKeelShops] = useState([]);
   const [keelActivityLog, setKeelActivityLog] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   // Fetch all data from Supabase on mount
   useEffect(() => {
@@ -128,6 +129,11 @@ export function DataProvider({ children }) {
             });
           }
         }
+      }
+
+      if (supabaseKeel) {
+        const { data: ann } = await supabaseKeel.from("announcements").select("*").order("created_at", { ascending: false }).limit(50);
+        if (!cancelled && ann) setAnnouncements(ann.map(toCamelCase));
       }
 
       if (!cancelled) setReady(true);
@@ -410,10 +416,37 @@ export function DataProvider({ children }) {
     setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
   }, [keelShops]);
 
+  // --- ANNOUNCEMENTS ---
+  const addAnnouncement = useCallback(async (data) => {
+    if (supabaseKeel) {
+      const { data: record, error } = await supabaseKeel.from("announcements").insert(toSnakeCase(data)).select().single();
+      if (error) throw error;
+      setAnnouncements((prev) => [toCamelCase(record), ...prev]);
+      return toCamelCase(record);
+    }
+    const entry = { ...data, id: crypto.randomUUID?.() || String(Date.now()) };
+    setAnnouncements((prev) => [...prev, entry]);
+    return entry;
+  }, [supabaseKeel]);
+
+  const updateAnnouncement = useCallback(async (id, data) => {
+    if (supabaseKeel) {
+      const { data: record } = await supabaseKeel.from("announcements").update(toSnakeCase(data)).eq("id", id).select().single();
+      if (record) upsertLocal(setAnnouncements, "announcements", record);
+      return;
+    }
+    setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
+  }, [supabaseKeel, upsertLocal]);
+
+  const deleteAnnouncement = useCallback(async (id) => {
+    if (supabaseKeel) await supabaseKeel.from("announcements").delete().eq("id", id);
+    removeLocal(setAnnouncements, id);
+  }, [supabaseKeel, removeLocal]);
+
   return (
     <DataContext.Provider value={{
       ready, clients, links, income, expenses, invoices, focusItems, activityFeed, notifications,
-      keelShops, keelActivityLog,
+      keelShops, keelActivityLog, announcements,
       addClient, updateClient, deleteClient,
       addLink, updateLink, deleteLink,
       addIncome, updateIncome, deleteIncome,
@@ -423,6 +456,7 @@ export function DataProvider({ children }) {
       pushActivity, pushNotification,
       markNotificationRead, markAllNotificationsRead,
       renewShop,
+      addAnnouncement, updateAnnouncement, deleteAnnouncement,
     }}>
       {!ready ? (
         <div className="flex items-center justify-center h-screen bg-slate-100 dark:bg-[#0f172a]">

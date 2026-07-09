@@ -1,5 +1,15 @@
-import { useState, useMemo } from "react";
-import { IoPulseOutline, IoReload } from "react-icons/io5";
+import { useState, useMemo, useEffect } from "react";
+import { IoPulseOutline, IoReload, IoAdd, IoTrashOutline, IoCreateOutline } from "react-icons/io5";
+import { FiInfo, FiAlertTriangle, FiAlertOctagon, FiTag, FiTool, FiCheck } from "react-icons/fi";
+import { supabaseKeel } from "../lib/supabaseKeel";
+
+const announcementVariants = [
+  { key: "info", icon: FiInfo, color: "bg-blue-500", border: "border-l-blue-500", label: "Info" },
+  { key: "warning", icon: FiAlertTriangle, color: "bg-amber-500", border: "border-l-amber-500", label: "Warning" },
+  { key: "alert", icon: FiAlertOctagon, color: "bg-red-500", border: "border-l-red-500", label: "Alert" },
+  { key: "sale", icon: FiTag, color: "bg-green-500", border: "border-l-green-500", label: "Sale" },
+  { key: "maintenance", icon: FiTool, color: "bg-slate-500", border: "border-l-slate-500", label: "Maintenance" },
+];
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
@@ -54,9 +64,26 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelActivityLog, renewShop } = useData();
+  const { keelShops, keelActivityLog, announcements, renewShop, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
   const [activeTab, setActiveTab] = useState("overview");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [announceForm, setAnnounceForm] = useState({ title: "", message: "", link_url: "", bg_image_url: "", variant: "info", priority: 0, starts_at: "", expires_at: "", no_expiry: true, link_text: "Learn More" });
   const [renewingShop, setRenewingShop] = useState(null);
+  const [dismissalCounts, setDismissalCounts] = useState({});
+
+  useEffect(() => {
+    if (!announcements.length) { setDismissalCounts({}); return; }
+    (async () => {
+      const { data } = await supabaseKeel
+        .from("announcement_dismissals")
+        .select("announcement_id")
+        .in("announcement_id", announcements.map((a) => a.id));
+      const counts = {};
+      (data || []).forEach((d) => { counts[d.announcement_id] = (counts[d.announcement_id] || 0) + 1; });
+      setDismissalCounts(counts);
+    })();
+  }, [announcements]);
 
   const now = Date.now();
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -88,7 +115,7 @@ export default function KeelPulse() {
     <PageLayout title="Keel Pulse">
       <div className="max-w-5xl mx-auto space-y-5">
         <div className="flex items-center gap-1 bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-lg p-0.5 shadow-sm w-fit">
-          {["overview", "activity"].map((tab) => (
+          {["overview", "activity", "announcements"].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-xs rounded-md transition-all ${activeTab === tab ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium" : "text-gray-400 dark:text-slate-500 hover:text-gray-600"}`}>
               {tab === "overview" ? "Overview" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -258,6 +285,233 @@ export default function KeelPulse() {
         <button onClick={() => handleRenew(30)} className="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors">
           Renew 30 days (default)
         </button>
+      </Modal>
+
+      {activeTab === "announcements" && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-400 dark:text-slate-500">{announcements.length} announcements</p>
+            <button onClick={() => { setAnnounceForm({ title: "", message: "", link_url: "", bg_image_url: "", variant: "info", priority: 0, starts_at: new Date().toISOString().slice(0, 16), expires_at: "", no_expiry: true, link_text: "Learn More" }); setShowCreateModal(true); }} className="flex items-center gap-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg px-3 py-1.5 hover:bg-amber-500 transition-colors">
+              <IoAdd size={13} /> New announcement
+            </button>
+          </div>
+          <div className="space-y-2">
+            {announcements.map((a) => {
+              const now = Date.now();
+              const startsAt = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+              const expiresAt = a.expiresAt ? new Date(a.expiresAt).getTime() : null;
+              const isActive = a.active !== false && startsAt <= now && (!expiresAt || expiresAt > now);
+              const v = announcementVariants.find((x) => x.key === a.variant) || announcementVariants[0];
+              const VIcon = v.icon;
+              return (
+                <div key={a.id} className={`bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-xl shadow-sm ${v.border} border-l-2`}>
+                  <div className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className={`w-8 h-8 rounded-lg ${v.color} bg-opacity-15 dark:bg-opacity-25 flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                        <VIcon size={14} className="text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-white">{a.title}</p>
+                          {isActive ? (
+                            <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">Active</span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded">Inactive</span>
+                          )}
+                        </div>
+                        {a.message && <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">{a.message}</p>}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
+                          {a.priority > 0 && (
+                            <span className="text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded">P{a.priority}</span>
+                          )}
+                          {a.startsAt && (
+                            <span className="text-gray-400 dark:text-slate-500">
+                              {new Date(a.startsAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
+                              {a.expiresAt ? ` → ${new Date(a.expiresAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}` : " → ∞"}
+                            </span>
+                          )}
+                          {dismissalCounts[a.id] > 0 && (
+                            <span className="text-amber-600 dark:text-amber-400">{dismissalCounts[a.id]} dismissed</span>
+                          )}
+                          {a.linkUrl && (
+                            <span className="text-amber-600 dark:text-amber-400">{a.linkText || "Learn More"} ↗</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => {
+                        const s = a.startsAt ? new Date(a.startsAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16);
+                        const e = a.expiresAt ? new Date(a.expiresAt).toISOString().slice(0, 16) : "";
+                        setEditingAnnouncement(a);
+                        setAnnounceForm({
+                          title: a.title, message: a.message || "", link_url: a.linkUrl || "", bg_image_url: a.bgImageUrl || "",
+                          variant: a.variant || "info", priority: a.priority || 0, starts_at: s, expires_at: e,
+                          no_expiry: !a.expiresAt, link_text: a.linkText || "Learn More",
+                        });
+                      }} className="p-1.5 text-gray-400 hover:text-amber-500 transition-colors" title="Edit">
+                        <IoCreateOutline size={14} />
+                      </button>
+                      <button onClick={() => deleteAnnouncement(a.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="Delete">
+                        <IoTrashOutline size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {announcements.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-3">
+                  <FiInfo size={20} className="text-gray-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-500 dark:text-slate-400">No announcements yet</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Create one to show a banner on all Keel dashboards.</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <Modal open={showCreateModal || !!editingAnnouncement} onClose={() => { setShowCreateModal(false); setEditingAnnouncement(null); }}>
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-5">{editingAnnouncement ? "Edit announcement" : "New announcement"}</h3>
+        <div className="space-y-5">
+          <div>
+            <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-2">Variant</label>
+            <div className="grid grid-cols-5 gap-2">
+              {announcementVariants.map((v) => {
+                const VIcon = v.icon;
+                const selected = announceForm.variant === v.key;
+                return (
+                  <button key={v.key} onClick={() => setAnnounceForm((p) => ({ ...p, variant: v.key }))} className={`relative flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all ${selected ? "border-gray-400 dark:border-white/30 bg-gray-50 dark:bg-white/5 shadow-sm" : "border-transparent text-gray-400 dark:text-slate-500 hover:bg-gray-50 dark:hover:bg-white/5"}`}>
+                    <div className={`w-8 h-8 rounded-lg ${v.color} flex items-center justify-center ${selected ? "ring-2 ring-offset-1 ring-offset-white dark:ring-offset-[#0f172a] ring-gray-400 dark:ring-white/30" : ""}`}>
+                      <VIcon size={14} className="text-white" />
+                    </div>
+                    <span className="text-[10px] font-medium">{v.label}</span>
+                    {selected && <FiCheck size={10} className="text-amber-500 absolute top-1 right-1" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+            <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 dark:text-slate-500 mb-3">Content</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Title</label>
+                <input value={announceForm.title} onChange={(e) => setAnnounceForm((p) => ({ ...p, title: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" placeholder="Announcement title" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Message</label>
+                <textarea value={announceForm.message} onChange={(e) => setAnnounceForm((p) => ({ ...p, message: e.target.value }))} rows={2} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors resize-none" placeholder="Announcement message" />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+            <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 dark:text-slate-500 mb-3">Scheduling</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Starts at</label>
+                <input type="datetime-local" value={announceForm.starts_at} onChange={(e) => setAnnounceForm((p) => ({ ...p, starts_at: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Expires at</label>
+                <input type="datetime-local" value={announceForm.expires_at} disabled={announceForm.no_expiry} onChange={(e) => setAnnounceForm((p) => ({ ...p, expires_at: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors disabled:opacity-40" />
+                <label className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-slate-500 cursor-pointer mt-1.5 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
+                  <input type="checkbox" checked={announceForm.no_expiry} onChange={(e) => setAnnounceForm((p) => ({ ...p, no_expiry: e.target.checked, expires_at: e.target.checked ? "" : p.expires_at }))} className="accent-amber-600" />
+                  Never expires
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+            <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 dark:text-slate-500 mb-3">Links</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Button text</label>
+                <input value={announceForm.link_text} onChange={(e) => setAnnounceForm((p) => ({ ...p, link_text: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" placeholder="Learn More" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Priority</label>
+                <input type="number" min="0" value={announceForm.priority} onChange={(e) => setAnnounceForm((p) => ({ ...p, priority: Number(e.target.value) }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Link URL (optional)</label>
+              <input value={announceForm.link_url} onChange={(e) => setAnnounceForm((p) => ({ ...p, link_url: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" placeholder="https://" />
+            </div>
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1">Background image URL (optional)</label>
+              <input value={announceForm.bg_image_url} onChange={(e) => setAnnounceForm((p) => ({ ...p, bg_image_url: e.target.value }))} className="w-full bg-gray-50 dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white outline-0 focus:border-amber-500/50 transition-colors" placeholder="https://images.unsplash.com/..." />
+            </div>
+          </div>
+
+          {announceForm.title && (
+            <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+              <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 dark:text-slate-500 mb-3">Preview</p>
+              <div className="relative h-32 rounded-xl overflow-hidden bg-cover bg-center border border-gray-200 dark:border-white/10" style={{
+                backgroundImage: announceForm.bg_image_url ? `url(${announceForm.bg_image_url})` : 
+                  announceForm.variant === "warning" ? "linear-gradient(135deg, #92400e 0%, #d97706 100%)" :
+                  announceForm.variant === "alert" ? "linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)" :
+                  announceForm.variant === "sale" ? "linear-gradient(135deg, #14532d 0%, #16a34a 100%)" :
+                  announceForm.variant === "maintenance" ? "linear-gradient(135deg, #1e293b 0%, #475569 100%)" :
+                  "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
+              }}>
+                <div className="absolute inset-0 bg-black/50" />
+                <div className="absolute inset-0 flex flex-col justify-center px-5">
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+                      {announceForm.variant === "warning" ? <FiAlertTriangle size={13} className="text-white" /> :
+                       announceForm.variant === "alert" ? <FiAlertOctagon size={13} className="text-white" /> :
+                       announceForm.variant === "sale" ? <FiTag size={13} className="text-white" /> :
+                       announceForm.variant === "maintenance" ? <FiTool size={13} className="text-white" /> :
+                       <FiInfo size={13} className="text-white" />}
+                    </div>
+                    <h4 className="text-white font-bold text-sm">{announceForm.title}</h4>
+                  </div>
+                  {announceForm.message && (
+                    <p className="text-white/70 text-xs max-w-lg leading-relaxed line-clamp-1 pl-9">{announceForm.message}</p>
+                  )}
+                  {announceForm.link_url && (
+                    <span className="mt-2 pl-9 inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded w-fit">
+                      {announceForm.link_text || "Learn More"} ↗
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-gray-100 dark:border-white/10">
+          <button onClick={() => { setShowCreateModal(false); setEditingAnnouncement(null); }} className="text-xs font-medium text-gray-500 dark:text-slate-400 px-3 py-1.5 hover:text-gray-700 dark:hover:text-white transition-colors">Cancel</button>
+          <button onClick={async () => {
+            try {
+              const payload = {
+                title: announceForm.title,
+                message: announceForm.message || null,
+                link_url: announceForm.link_url || null,
+                bg_image_url: announceForm.bg_image_url || null,
+                variant: announceForm.variant,
+                priority: announceForm.priority,
+                starts_at: new Date(announceForm.starts_at).toISOString(),
+                expires_at: announceForm.no_expiry ? null : (announceForm.expires_at ? new Date(announceForm.expires_at).toISOString() : null),
+                link_text: announceForm.link_text || "Learn More",
+              };
+              if (editingAnnouncement) {
+                await updateAnnouncement(editingAnnouncement.id, payload);
+              } else {
+                await addAnnouncement(payload);
+              }
+              setShowCreateModal(false);
+              setEditingAnnouncement(null);
+            } catch (err) { alert(err.message); }
+          }} className="text-xs font-medium bg-amber-600 text-white rounded-lg px-4 py-1.5 hover:bg-amber-500 transition-colors">
+            {editingAnnouncement ? "Save changes" : "Create announcement"}
+          </button>
+        </div>
       </Modal>
     </PageLayout>
   );

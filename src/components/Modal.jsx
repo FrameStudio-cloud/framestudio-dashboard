@@ -9,9 +9,12 @@ export default function Modal({ open, onClose, title, children }) {
     if (!el) return;
     if (open) {
       el.showModal();
+      document.body.style.overflow = "hidden";
     } else {
       el.close();
+      document.body.style.overflow = "";
     }
+    return () => { document.body.style.overflow = ""; };
   }, [open]);
 
   useEffect(() => {
