@@ -391,6 +391,7 @@ export function DataProvider({ children }) {
     if (!shop) return;
     const newExpiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
     if (supabaseKeel) {
+      await supabaseKeel.from("shops").update({ subscription_expires_at: newExpiry }).eq("id", id);
       await supabaseKeel.from("keel_shops").update({ status: "active", subscription_expires_at: newExpiry }).eq("id", id);
       const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
         action: "renewal", shop: shop.name, detail: `Renewed for ${days} days by admin`, timestamp: new Date().toISOString(),
