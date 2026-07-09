@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { IoCheckmarkCircle, IoCloseCircle, IoPulseOutline } from "react-icons/io5";
+import { IoPulseOutline, IoReload } from "react-icons/io5";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import StatusBadge from "../components/StatusBadge";
+import Modal from "../components/Modal";
 import { useData } from "../context/DataContext";
 import { revenueByPlan } from "../data/mock";
 
@@ -25,6 +26,11 @@ function timeAgo(ts) {
   return `${days}d ago`;
 }
 
+function formatDate(ts) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -43,31 +49,46 @@ const actionIcons = {
   approval: "✅",
   flag: "🚩",
   subscription: "🔄",
+  expiry: "⏰",
+  renewal: "🔄",
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelApprovals, keelActivityLog, approveShop, rejectShop } = useData();
+  const { keelShops, keelActivityLog, renewShop } = useData();
   const [activeTab, setActiveTab] = useState("overview");
+  const [renewingShop, setRenewingShop] = useState(null);
 
-  const activeShops = useMemo(() => keelShops.filter((s) => s.status === "active").length, [keelShops]);
-  const pendingApprovals = useMemo(() => keelApprovals.filter((a) => a.status === "pending").length, [keelApprovals]);
-  const flaggedIssues = useMemo(() => keelActivityLog.filter((l) => l.action === "flag").length, [keelActivityLog]);
-  const monthlySubscriptionRevenue = useMemo(() =>
-    keelShops.reduce((sum, s) => sum + (s.revenue || 0), 0),
-  [keelShops]);
+  const now = Date.now();
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+  const shopsWithStatus = useMemo(() => keelShops.map((s) => {
+    const expiresAt = s.subscriptionExpiresAt ? new Date(s.subscriptionExpiresAt).getTime() : null;
+    const isExpired = s.status === "expired" || (expiresAt && expiresAt < now);
+    const isExpiringSoon = !isExpired && expiresAt && expiresAt < now + sevenDays;
+    return { ...s, expiresAt, isExpired, isExpiringSoon };
+  }), [keelShops]);
+
+  const activeShops = useMemo(() => shopsWithStatus.filter((s) => !s.isExpired && !s.isExpiringSoon && s.status === "active").length, [shopsWithStatus]);
+  const expiredCount = useMemo(() => shopsWithStatus.filter((s) => s.isExpired).length, [shopsWithStatus]);
+  const expiringSoonCount = useMemo(() => shopsWithStatus.filter((s) => s.isExpiringSoon).length, [shopsWithStatus]);
 
   const statusData = [
     { name: "Active", value: activeShops },
-    { name: "Pending", value: pendingApprovals },
+    { name: "Expiring soon", value: expiringSoonCount },
+    { name: "Expired", value: expiredCount },
   ];
 
-  const pendingList = useMemo(() => keelApprovals.filter((a) => a.status === "pending"), [keelApprovals]);
+  function handleRenew(days) {
+    if (!renewingShop) return;
+    renewShop(renewingShop.id, days);
+    setRenewingShop(null);
+  }
 
   return (
     <PageLayout title="Keel Pulse">
       <div className="max-w-5xl mx-auto space-y-5">
         <div className="flex items-center gap-1 bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-lg p-0.5 shadow-sm w-fit">
-          {["overview", "approvals", "activity"].map((tab) => (
+          {["overview", "activity"].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-xs rounded-md transition-all ${activeTab === tab ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium" : "text-gray-400 dark:text-slate-500 hover:text-gray-600"}`}>
               {tab === "overview" ? "Overview" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -76,15 +97,14 @@ export default function KeelPulse() {
 
         {activeTab === "overview" && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <StatCard label="Active shops" value={activeShops} color="green" />
-              <StatCard label="Pending approvals" value={pendingApprovals} color="amber" />
-              <StatCard label="Flagged issues" value={flaggedIssues} color="red" />
-              <StatCard label="Monthly subscription" value={formatKES(monthlySubscriptionRevenue)} color="blue" />
+              <StatCard label="Expiring soon" value={expiringSoonCount} color="amber" />
+              <StatCard label="Expired" value={expiredCount} color="red" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard title="Shop status" subtitle="Active vs pending">
+              <ChartCard title="Shop status" subtitle="Active vs expiring vs expired">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie data={statusData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" paddingAngle={2}>
@@ -93,7 +113,7 @@ export default function KeelPulse() {
                     <Tooltip content={<CustomTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex justify-center gap-4 mt-2">
+                <div className="flex justify-center gap-4 mt-2 flex-wrap">
                   {statusData.map((item, i) => (
                     <div key={item.name} className="flex items-center gap-1.5 text-xs">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i] }} />
@@ -126,96 +146,77 @@ export default function KeelPulse() {
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Shop</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Status</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Plan</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Expires</th>
                       <th className="text-right px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {keelShops.map((shop) => (
-                      <tr key={shop.name} className="border-b border-gray-50 dark:border-white/5 last:border-0">
+                    {shopsWithStatus.map((shop) => (
+                      <tr key={shop.name} className={`border-b border-gray-50 dark:border-white/5 last:border-0 ${shop.isExpired ? "bg-red-50/30 dark:bg-red-900/5" : ""}`}>
                         <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">{shop.name}</td>
-                        <td className="px-4 py-3"><StatusBadge status={shop.status === "active" ? "delivered" : "pending"} label={shop.status === "active" ? "Active" : "Pending"} /></td>
+                        <td className="px-4 py-3">
+                          {shop.isExpired ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded">Expired</span>
+                          ) : shop.isExpiringSoon ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Expiring soon</span>
+                          ) : (
+                            <StatusBadge status="delivered" label="Active" />
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-xs text-gray-500 dark:text-slate-400 capitalize">{shop.plan}</td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-slate-400">
+                          {shop.expiresAt ? (
+                            <span className={shop.isExpired ? "text-red-500 dark:text-red-400 font-medium" : shop.isExpiringSoon ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>
+                              {formatDate(shop.expiresAt)}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</span>
+                            {shop.isExpired && (
+                              <button onClick={() => setRenewingShop(shop)} className="flex items-center gap-1 text-[11px] font-medium bg-amber-600 text-white rounded-lg px-2.5 py-1.5 hover:bg-amber-500 transition-colors">
+                                <IoReload size={11} /> Renew
+                              </button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="md:hidden divide-y divide-gray-50 dark:divide-white/5">
-                {keelShops.map((shop) => (
-                  <div key={shop.name} className="flex items-center justify-between px-4 py-3">
-                    <div>
+                {shopsWithStatus.map((shop) => (
+                  <div key={shop.name} className={`px-4 py-3 ${shop.isExpired ? "bg-red-50/30 dark:bg-red-900/5" : ""}`}>
+                    <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <StatusBadge status={shop.status === "active" ? "delivered" : "pending"} label={shop.status === "active" ? "Active" : "Pending"} />
-                        <span className="text-xs text-gray-400 dark:text-slate-500 capitalize">{shop.plan}</span>
-                      </div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
                     </div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {shop.isExpired ? (
+                        <span className="text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded">Expired</span>
+                      ) : shop.isExpiringSoon ? (
+                        <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Expiring soon</span>
+                      ) : (
+                        <StatusBadge status="delivered" label="Active" />
+                      )}
+                      <span className="text-xs text-gray-400 dark:text-slate-500 capitalize">{shop.plan}</span>
+                      {shop.expiresAt && (
+                        <span className={`text-[11px] ${shop.isExpired ? "text-red-500" : shop.isExpiringSoon ? "text-amber-600" : "text-gray-400"}`}>
+                          {shop.isExpired ? "Expired " : "Expires "}{formatDate(shop.expiresAt)}
+                        </span>
+                      )}
+                    </div>
+                    {shop.isExpired && (
+                      <button onClick={() => setRenewingShop(shop)} className="mt-2 flex items-center gap-1 text-[11px] font-medium bg-amber-600 text-white rounded-lg px-2.5 py-1.5 hover:bg-amber-500 transition-colors">
+                        <IoReload size={11} /> Renew
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-          </>
-        )}
-
-        {activeTab === "approvals" && (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-400 dark:text-slate-500">{pendingList.length} pending {pendingList.length !== 1 ? "approvals" : "approval"}</p>
-            </div>
-
-            {pendingList.length === 0 ? (
-              <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl p-8 text-center shadow-sm">
-                <IoCheckmarkCircle size={40} className="text-green-500 mx-auto mb-2" />
-                <p className="text-sm text-gray-500 dark:text-slate-400">All caught up! No pending approvals.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pendingList.map((approval) => (
-                  <div key={approval.id} className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl p-4 shadow-sm">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{approval.shopName}</h3>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">Owner: {approval.owner} · {approval.plan} plan</p>
-                        <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">Submitted {timeAgo(approval.submittedAt)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => approveShop(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-lg px-3 py-1.5 hover:bg-green-500 transition-colors">
-                          <IoCheckmarkCircle size={12} /> Approve
-                        </button>
-                        <button onClick={() => rejectShop(approval.id)} className="flex items-center gap-1 text-xs font-medium bg-red-600 text-white rounded-lg px-3 py-1.5 hover:bg-red-500 transition-colors">
-                          <IoCloseCircle size={12} /> Reject
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500">
-                      <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded font-medium">{approval.plan}</span>
-                      <span>Waiting review</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {keelApprovals.filter((a) => a.status !== "pending").length > 0 && (
-              <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
-                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">History</h3>
-                </div>
-                <div className="divide-y divide-gray-50 dark:divide-white/5">
-                  {keelApprovals.filter((a) => a.status !== "pending").map((approval) => (
-                    <div key={approval.id} className="flex items-center justify-between px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800 dark:text-white">{approval.shopName}</p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">{approval.owner} · {approval.plan}</p>
-                      </div>
-                      <StatusBadge status={approval.status === "approved" ? "paid" : "pending"} label={approval.status === "approved" ? "Approved" : "Rejected"} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -243,6 +244,21 @@ export default function KeelPulse() {
           </>
         )}
       </div>
+
+      <Modal open={!!renewingShop} onClose={() => setRenewingShop(null)} title={`Renew — ${renewingShop?.name || ""}`}>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">Select renewal period. The shop will be reactivated and a new expiry date set.</p>
+        <div className="grid grid-cols-3 gap-3">
+          {[7, 14, 30].map((days) => (
+            <button key={days} onClick={() => handleRenew(days)} className="flex flex-col items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl px-4 py-4 transition-colors border border-amber-500/20 hover:border-amber-500/40">
+              <span className="text-lg font-bold">{days}</span>
+              <span className="text-[11px]">days</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => handleRenew(30)} className="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors">
+          Renew 30 days (default)
+        </button>
+      </Modal>
     </PageLayout>
   );
 }

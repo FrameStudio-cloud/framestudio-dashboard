@@ -37,7 +37,6 @@ export function DataProvider({ children }) {
   const [activityFeed, setActivityFeed] = useState(mockActivityFeed);
   const [notifications, setNotifications] = useState(isSupabase ? [] : mockNotifications);
   const [keelShops, setKeelShops] = useState([]);
-  const [keelApprovals, setKeelApprovals] = useState([]);
   const [keelActivityLog, setKeelActivityLog] = useState([]);
 
   // Fetch all data from Supabase on mount
@@ -88,20 +87,46 @@ export function DataProvider({ children }) {
       if (supabaseKeel) {
         const keelTables = [
           { key: "keelShops", table: "keel_shops" },
-          { key: "keelApprovals", table: "keel_approvals" },
           { key: "keelActivityLog", table: "keel_activity_log" },
         ];
         const keelResults = await Promise.allSettled(
           keelTables.map((t) => supabaseKeel.from(t.table).select("*").order("created_at", { ascending: false }))
         );
+
+        // Also fetch from the main `shops` table (where mobile app signups land)
+        const { data: appShops } = await supabaseKeel.from("shops").select("id, name, created_at, subscription_expires_at").order("created_at", { ascending: false });
+
         if (!cancelled) {
           keelResults.forEach((result, i) => {
             const key = keelTables[i].key;
             if (result.status === "fulfilled" && result.value.data) {
-              const setter = { setKeelShops, setKeelApprovals, setKeelActivityLog }[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
+              const setter = { setKeelShops, setKeelActivityLog }[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
               if (setter) setter(result.value.data.map(toCamelCase));
             }
           });
+
+          // Merge shops from the app's `shops` table into keelShops
+          if (appShops) {
+            setKeelShops((prev) => {
+              const existingNames = new Set(prev.map((s) => s.name.toLowerCase().trim()));
+              const merged = [...prev];
+              appShops.forEach((s) => {
+                if (!existingNames.has(s.name.toLowerCase().trim())) {
+                  merged.push({
+                    id: s.id,
+                    name: s.name,
+                    status: "active",
+                    plan: "starter",
+                    revenue: 0,
+                    owner: s.name,
+                    createdAt: s.created_at,
+                    subscriptionExpiresAt: s.subscription_expires_at || new Date(new Date(s.created_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                  });
+                }
+              });
+              return merged;
+            });
+          }
         }
       }
 
@@ -361,17 +386,16 @@ export function DataProvider({ children }) {
   }, [isSupabase]);
 
   // --- KEEL ---
-  const approveShop = useCallback(async (id) => {
-    const approval = keelApprovals.find((a) => a.id === id);
-    if (!approval) return;
+  const renewShop = useCallback(async (id, days = 30) => {
+    const shop = keelShops.find((s) => s.id === id);
+    if (!shop) return;
+    const newExpiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
     if (supabaseKeel) {
-      await supabaseKeel.from("keel_approvals").update({ status: "approved" }).eq("id", id);
-      await supabaseKeel.from("keel_shops").update({ status: "active" }).eq("name", approval.shopName);
+      await supabaseKeel.from("keel_shops").update({ status: "active", subscription_expires_at: newExpiry }).eq("id", id);
       const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
-        action: "approval", shop: approval.shopName, detail: "Approved by admin", timestamp: new Date().toISOString(),
+        action: "renewal", shop: shop.name, detail: `Renewed for ${days} days by admin`, timestamp: new Date().toISOString(),
       }).select().single();
-      setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "approved" } : a));
-      setKeelShops((prev) => prev.map((s) => s.name === approval.shopName ? { ...s, status: "active" } : s));
+      setKeelShops((prev) => prev.map((s) => s.id === id ? { ...s, status: "active", subscriptionExpiresAt: newExpiry } : s));
       if (logEntry) {
         const c = toCamelCase(logEntry);
         setKeelActivityLog((prev) => [c, ...prev]);
@@ -379,39 +403,16 @@ export function DataProvider({ children }) {
       }
       return;
     }
-    setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "approved" } : a));
-    setKeelShops((prev) => prev.map((s) => s.name === approval.shopName ? { ...s, status: "active" } : s));
-    const logEntry = { id: crypto.randomUUID?.() || String(Date.now()), action: "approval", shop: approval.shopName, detail: "Approved by admin", timestamp: new Date().toISOString() };
+    setKeelShops((prev) => prev.map((s) => s.id === id ? { ...s, status: "active", subscriptionExpiresAt: newExpiry } : s));
+    const logEntry = { id: crypto.randomUUID?.() || String(Date.now()), action: "renewal", shop: shop.name, detail: `Renewed for ${days} days by admin`, timestamp: new Date().toISOString() };
     setKeelActivityLog((prev) => [logEntry, ...prev]);
     setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
-  }, [keelApprovals]);
-
-  const rejectShop = useCallback(async (id) => {
-    const approval = keelApprovals.find((a) => a.id === id);
-    if (!approval) return;
-    if (supabaseKeel) {
-      await supabaseKeel.from("keel_approvals").update({ status: "rejected" }).eq("id", id);
-      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
-        action: "flag", shop: approval.shopName, detail: "Shop registration rejected", timestamp: new Date().toISOString(),
-      }).select().single();
-      setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected" } : a));
-      if (logEntry) {
-        const c = toCamelCase(logEntry);
-        setKeelActivityLog((prev) => [c, ...prev]);
-        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
-      }
-      return;
-    }
-    setKeelApprovals((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected" } : a));
-    const logEntry = { id: crypto.randomUUID?.() || String(Date.now()), action: "flag", shop: approval.shopName, detail: "Shop registration rejected", timestamp: new Date().toISOString() };
-    setKeelActivityLog((prev) => [logEntry, ...prev]);
-    setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
-  }, [keelApprovals]);
+  }, [keelShops]);
 
   return (
     <DataContext.Provider value={{
       ready, clients, links, income, expenses, invoices, focusItems, activityFeed, notifications,
-      keelShops, keelApprovals, keelActivityLog,
+      keelShops, keelActivityLog,
       addClient, updateClient, deleteClient,
       addLink, updateLink, deleteLink,
       addIncome, updateIncome, deleteIncome,
@@ -420,7 +421,7 @@ export function DataProvider({ children }) {
       addFocusItem, updateFocusItem, toggleFocusItem, reorderFocusItems, deleteFocusItem,
       pushActivity, pushNotification,
       markNotificationRead, markAllNotificationsRead,
-      approveShop, rejectShop,
+      renewShop,
     }}>
       {!ready ? (
         <div className="flex items-center justify-center h-screen bg-slate-100 dark:bg-[#0f172a]">
