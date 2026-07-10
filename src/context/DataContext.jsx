@@ -91,7 +91,7 @@ export function DataProvider({ children }) {
           { key: "keelActivityLog", table: "keel_activity_log" },
         ];
         const keelResults = await Promise.allSettled(
-          keelTables.map((t) => supabaseKeel.from(t.table).select("*").order("created_at", { ascending: false }))
+          keelTables.map((t) => supabaseKeel.from(t.table).select("*").order(t.table === "keel_activity_log" ? "timestamp" : "created_at", { ascending: false }))
         );
 
         // Also fetch from the main `shops` table (where mobile app signups land)
@@ -416,6 +416,23 @@ export function DataProvider({ children }) {
     setActivityFeed((prev) => [{ id: logEntry.id, type: "keel", message: `${logEntry.shop} — ${logEntry.detail}`, client: logEntry.shop, timestamp: logEntry.timestamp, link: "/keel" }, ...prev]);
   }, [keelShops]);
 
+  const deleteShop = useCallback(async (id) => {
+    const shop = keelShops.find((s) => s.id === id);
+    if (supabaseKeel) {
+      await supabaseKeel.from("keel_shops").delete().eq("id", id);
+      await supabaseKeel.from("shops").update({ scheduled_deletion_at: new Date().toISOString() }).eq("id", id);
+      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
+        action: "deleted", shop: shop?.name || "unknown", detail: "Shop deleted by admin", timestamp: new Date().toISOString(),
+      }).select().single();
+      if (logEntry) {
+        const c = toCamelCase(logEntry);
+        setKeelActivityLog((prev) => [c, ...prev]);
+        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+      }
+    }
+    removeLocal(setKeelShops, id);
+  }, [supabaseKeel, keelShops, removeLocal]);
+
   // --- ANNOUNCEMENTS ---
   const addAnnouncement = useCallback(async (data) => {
     if (supabaseKeel) {
@@ -455,7 +472,7 @@ export function DataProvider({ children }) {
       addFocusItem, updateFocusItem, toggleFocusItem, reorderFocusItems, deleteFocusItem,
       pushActivity, pushNotification,
       markNotificationRead, markAllNotificationsRead,
-      renewShop,
+      renewShop, deleteShop,
       addAnnouncement, updateAnnouncement, deleteAnnouncement,
     }}>
       {!ready ? (

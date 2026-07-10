@@ -9,8 +9,10 @@ import PageLayout from "../components/layout/PageLayout";
 import ChartCard from "../components/ChartCard";
 import StatusBadge from "../components/StatusBadge";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import ClientForm from "../components/forms/ClientForm";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 import { revenueByClient, invoiceStatusDistribution } from "../data/mock";
 
 function formatKES(amount) {
@@ -52,6 +54,8 @@ export default function Clients() {
   const [modalOpen, setModalOpen] = useState(actionAdd);
   const [editing, setEditing] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const { toast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [notesInput, setNotesInput] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -76,14 +80,16 @@ export default function Clients() {
   const handleSave = (data) => {
     if (editing) {
       updateClient(editing.id, data);
+      toast.success("Client updated");
     } else {
       addClient(data);
+      toast.success("Client added");
     }
     closeModal();
   };
 
-  const confirmDelete = (id, name) => {
-    if (window.confirm(`Delete ${name}?`)) deleteClient(id);
+  const confirmDeleteHandler = (id, name) => {
+    setConfirmDelete({ id, name });
   };
 
   const updateStage = (clientId, stage) => {
@@ -188,11 +194,19 @@ export default function Clients() {
                           <StatusBadge status={client.projectStatus} />
                           <StatusBadge status={client.invoiceStatus} />
                         </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-1 flex-1">
+                            {stages.map((s, i) => (
+                              <div key={s.key} className={`h-1.5 flex-1 rounded-full transition-all ${currentStageIdx >= i ? "bg-amber-500" : "bg-gray-200 dark:bg-white/10"} ${currentStageIdx === i ? "ring-1 ring-amber-500/50" : ""}`} title={s.label} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex-shrink-0">{stages[currentStageIdx]?.label || "Discovery"}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={() => openEdit(client)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" aria-label="Edit"><IoCreateOutline size={14} /></button>
-                      <button onClick={() => confirmDelete(client.id, client.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={14} /></button>
+                      <button onClick={() => confirmDeleteHandler(client.id, client.name)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={14} /></button>
                       <button onClick={() => toggleExpand(client.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" aria-label="Expand">
                         {isExpanded ? <IoChevronUp size={14} /> : <IoChevronDown size={14} />}
                       </button>
@@ -318,6 +332,15 @@ export default function Clients() {
       <Modal open={modalOpen} onClose={closeModal} title={editing ? "Edit client" : "Add client"}>
         <ClientForm initial={editing} onSave={handleSave} onCancel={closeModal} />
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { deleteClient(confirmDelete.id); toast.success("Client deleted"); }}
+        title="Delete client?"
+        message={`Remove "${confirmDelete?.name}" and all associated data?`}
+        confirmDanger
+      />
     </PageLayout>
   );
 }

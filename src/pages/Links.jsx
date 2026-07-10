@@ -4,8 +4,10 @@ import { SiVercel, SiSupabase } from "react-icons/si";
 import { IoAdd, IoTrashOutline, IoCreateOutline, IoStar, IoStarOutline, IoSearch } from "react-icons/io5";
 import PageLayout from "../components/layout/PageLayout";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import LinkForm from "../components/forms/LinkForm";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 
 const categoryLabels = {
   "client-sites": "Client Sites",
@@ -26,7 +28,8 @@ export default function Links() {
   const [editing, setEditing] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [copiedId, setCopiedId] = useState(null);
+  const { toast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const clientOptions = clients.map((c) => c.name);
 
@@ -37,25 +40,26 @@ export default function Links() {
   const handleSave = (data) => {
     if (editing) {
       updateLink(editing.id, data);
+      toast.success("Link updated");
     } else {
       addLink(data);
+      toast.success("Link added");
     }
     closeModal();
   };
 
-  const confirmDelete = (id, name) => {
-    if (window.confirm(`Delete link for ${name}?`)) deleteLink(id);
+  const confirmDeleteHandler = (id, name) => {
+    setConfirmDelete({ id, name });
   };
 
   const toggleFavourite = (link) => {
     updateLink(link.id, { favourite: !link.favourite });
   };
 
-  const copyUrl = async (url, id) => {
+  const copyUrl = async (url) => {
     try {
       await navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
+      toast.success("URL copied");
     } catch {}
   };
 
@@ -86,7 +90,7 @@ export default function Links() {
           </span>
         )}
         {link[field] && typeof link[field] === "string" && !link[field].startsWith("http") && (
-          <button onClick={() => copyUrl(link[field], `${link.id}-${field}`)} className="text-gray-300 dark:text-slate-600 hover:text-amber-500 transition-colors">
+          <button onClick={() => copyUrl(link[field])} className="text-gray-300 dark:text-slate-600 hover:text-amber-500 transition-colors">
             <FiCopy size={10} />
           </button>
         )}
@@ -124,8 +128,8 @@ export default function Links() {
           </div>
         </div>
 
-        <div className="hidden md:block bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+        <div className="hidden md:block bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-x-auto shadow-sm">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-100 dark:border-white/10">
                 <th className="w-8 px-2 py-3" />
@@ -162,12 +166,12 @@ export default function Links() {
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-1">
                       {link.liveUrl && (
-                        <button onClick={() => copyUrl(link.liveUrl, `copy-${link.id}`)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" title="Copy URL">
-                          {copiedId === `copy-${link.id}` ? <span className="text-[10px] text-green-500">OK</span> : <FiCopy size={11} />}
+                        <button onClick={() => copyUrl(link.liveUrl)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" title="Copy URL">
+                          <FiCopy size={11} />
                         </button>
                       )}
                       <button onClick={() => openEdit(link)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" aria-label="Edit"><IoCreateOutline size={12} /></button>
-                      <button onClick={() => confirmDelete(link.id, link.clientName)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={12} /></button>
+                      <button onClick={() => confirmDeleteHandler(link.id, link.clientName)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={12} /></button>
                     </div>
                   </td>
                 </tr>
@@ -188,7 +192,7 @@ export default function Links() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => openEdit(link)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all" aria-label="Edit"><IoCreateOutline size={12} /></button>
-                  <button onClick={() => confirmDelete(link.id, link.clientName)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={12} /></button>
+                  <button onClick={() => confirmDeleteHandler(link.id, link.clientName)} className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" aria-label="Delete"><IoTrashOutline size={12} /></button>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -213,6 +217,15 @@ export default function Links() {
       <Modal open={modalOpen} onClose={closeModal} title={editing ? "Edit link" : "Add link"}>
         <LinkForm clientOptions={clientOptions} initial={editing} onSave={handleSave} onCancel={closeModal} />
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { deleteLink(confirmDelete.id); toast.success("Link deleted"); }}
+        title="Delete link?"
+        message={`Remove link for "${confirmDelete?.name}"?`}
+        confirmDanger
+      />
     </PageLayout>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline } from "react-icons/io5";
+import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoCalendarOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline } from "react-icons/io5";
 import { HiOutlineSquares2X2 } from "react-icons/hi2";
 
 const groups = [
@@ -28,6 +28,7 @@ const groups = [
     label: "Planning",
     items: [
       { label: "Focus Board", icon: <IoCheckboxOutline size={18} />, path: "/focus" },
+      { label: "Timeline", icon: <IoCalendarOutline size={18} />, path: "/timeline" },
     ],
   },
   {

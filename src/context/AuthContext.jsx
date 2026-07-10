@@ -41,13 +41,19 @@ export default function AuthProvider({ children }) {
     return data;
   };
 
+  const resetPassword = async (email) => {
+    if (!isConfigured) throw new Error("Supabase not configured");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + "/login" });
+    if (error) throw error;
+  };
+
   const logout = async () => {
     if (!isConfigured) return;
     await supabase.auth.signOut();
     setUser(null);
   };
 
-  const value = { user, loading, login, signUp, logout };
+  const value = { user, loading, login, signUp, resetPassword, logout };
 
   return (
     <AuthContext.Provider value={value}>

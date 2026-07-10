@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import PageLayout from "../components/layout/PageLayout";
 import ChartCard from "../components/ChartCard";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 import { monthlyRevenue, monthlyComparison, revenueByServiceType } from "../data/mock";
 
 function formatKES(amount) {
@@ -67,6 +68,7 @@ function generatePDF(title, content) {
 export default function Reports() {
   const { clients, income, invoices, expenses } = useData();
   const [activeReport, setActiveReport] = useState("monthly");
+  const { toast } = useToast();
   const [clientFilter, setClientFilter] = useState("all");
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);
@@ -98,6 +100,7 @@ export default function Reports() {
       <p style="margin-top:16px;font-size:13px;color:#64748b;">Profit: ${formatKES(profit)} · Margin: ${totalIncome > 0 ? ((profit / totalIncome) * 100).toFixed(1) : 0}%</p>
     `;
     generatePDF("Monthly Revenue Report", content);
+    toast.success("Monthly report generated");
   };
 
   const generateClientReport = () => {
@@ -132,6 +135,7 @@ export default function Reports() {
       }).join("")}
     `;
     generatePDF("Client Project Summary", content);
+    toast.success("Client report generated");
   };
 
   const generateOutstandingReport = () => {
@@ -147,6 +151,7 @@ export default function Reports() {
       `}
     `;
     generatePDF("Outstanding Invoices Report", content);
+    toast.success("Outstanding report generated");
   };
 
   return (
@@ -190,7 +195,7 @@ export default function Reports() {
               <ChartCard title="Revenue vs Outstanding" subtitle="Monthly comparison">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-gray-400 dark:text-slate-500">Click to export CSV</p>
-                  <button onClick={() => exportToCSV(monthlyComparison, "monthly-revenue.csv")} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
+                  <button onClick={() => { exportToCSV(monthlyComparison, "monthly-revenue.csv"); toast.success("CSV exported"); }} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
                 </div>
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={monthlyComparison}>
@@ -242,7 +247,7 @@ export default function Reports() {
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{client.name}</h3>
                         <p className="text-xs text-gray-400 dark:text-slate-500">{client.business} · {client.whatWasBuilt}</p>
                       </div>
-                      <button onClick={() => exportToCSV(cinvoice, `${client.name.replace(/\s+/g, "-").toLowerCase()}-payments.csv`)} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
+                      <button onClick={() => { exportToCSV(cinvoice, `${client.name.replace(/\s+/g, "-").toLowerCase()}-payments.csv`); toast.success("CSV exported"); }} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-sm mt-3 pt-3 border-t border-gray-50 dark:border-white/5">
                       <div>
@@ -291,8 +296,8 @@ export default function Reports() {
                 <p className="text-sm text-gray-500 dark:text-slate-400">No outstanding invoices!</p>
               </div>
             ) : (
-              <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-sm">
+              <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-x-auto shadow-sm">
+                <table className="w-full text-sm min-w-[640px]">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-white/10">
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Client</th>

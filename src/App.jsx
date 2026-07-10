@@ -1,6 +1,8 @@
 import { lazy, Suspense, useContext, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FiLock } from "react-icons/fi";
+import { Icon, Alert, ToastProvider } from "cite-ui";
 import AuthProvider, { AuthContext } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 import { supabase } from "./lib/supabase";
@@ -15,6 +17,7 @@ const Links = lazy(() => import("./pages/Links"));
 const Finances = lazy(() => import("./pages/Finances"));
 const KeelPulse = lazy(() => import("./pages/KeelPulse"));
 const Focus = lazy(() => import("./pages/Focus"));
+const Timeline = lazy(() => import("./pages/Timeline"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
 
@@ -35,7 +38,7 @@ function ProtectedRoute({ children }) {
 }
 
 function LoginPage() {
-  const { login, signUp } = useContext(AuthContext);
+  const { login, signUp, resetPassword } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -64,26 +67,84 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-slate-100 dark:bg-[#0f172a]">
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl p-6 w-full max-w-xs shadow-sm">
-        <div className="w-10 h-10 bg-amber-600 rounded-xl flex items-center justify-center text-white font-bold mx-auto mb-3">F</div>
-        <h1 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-1">FrameStudio</h1>
-        <p className="text-xs text-gray-400 dark:text-slate-500 text-center mb-5">{mode === "signin" ? "Sign in to your admin dashboard" : "Create your admin account"}</p>
-        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        {success && <p className="text-xs text-green-500 mb-3">{success}</p>}
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 mb-2 bg-slate-50 dark:bg-[#1a1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400" />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password (min 6 chars)" required minLength={6} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 mb-4 bg-slate-50 dark:bg-[#1a1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400" />
-        <button type="submit" className="w-full text-sm font-medium bg-amber-600 text-white rounded-lg px-3 py-2 hover:bg-amber-500 transition-colors">
-          {mode === "signin" ? "Sign in" : "Create account"}
-        </button>
-        <p className="text-xs text-gray-400 dark:text-slate-500 text-center mt-4">
-          {mode === "signin" ? (
-            <>No account? <button type="button" onClick={() => { setMode("signup"); setError(""); setSuccess(""); }} className="text-amber-600 dark:text-amber-400 hover:underline">Sign up</button></>
-          ) : (
-            <>Already have one? <button type="button" onClick={() => { setMode("signin"); setError(""); setSuccess(""); }} className="text-amber-600 dark:text-amber-400 hover:underline">Sign in</button></>
-          )}
-        </p>
-      </form>
+    <div className="flex h-screen bg-white dark:bg-[#0f172a]">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-800 via-amber-700 to-amber-900" />
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80)" }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-white font-bold text-sm">F</div>
+            <span className="text-white/90 font-semibold tracking-tight">FrameStudio</span>
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-3xl font-bold text-white leading-tight">Craft digital<br />experiences that matter</h2>
+            <p className="text-white/60 text-sm max-w-xs leading-relaxed">Manage your clients, finances, projects, and team — all from one place.</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-amber-50/40 to-white dark:from-[#0f172a] dark:to-[#0f172a]">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-10">
+            <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl flex items-center justify-center text-white font-bold text-xl mx-auto mb-5 shadow-xl shadow-amber-600/25 ring-1 ring-amber-400/15">
+              F
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              {mode === "signin" ? "Welcome back" : "Get started"}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1.5">
+              {mode === "signin" ? "Sign in to your admin dashboard" : "Create your management account"}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-[#131328] rounded-2xl p-7 shadow-sm border border-gray-100 dark:border-white/5">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <Alert type="error" message={error} className="!p-3 text-xs" />
+              )}
+              {success && (
+                <Alert type="success" message={success} className="!p-3 text-xs" />
+              )}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 dark:text-slate-300 block mb-1.5 tracking-wide">Email</label>
+                <div className="relative">
+                  <Icon name="mail" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@agency.com" required className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#1a1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-600 dark:text-slate-300 block tracking-wide">Password</label>
+                  {mode === "signin" && (
+                    <button type="button" onClick={async () => { const e = prompt("Enter your email:", email); if (e) try { await resetPassword(e); setSuccess("Password reset link sent"); setError(""); } catch (err) { setError(err.message); setSuccess(""); } }} className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline">Forgot?</button>
+                  )}
+                </div>
+                <div className="relative">
+                  <FiLock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signin" ? "Enter your password" : "Min 6 characters"} required minLength={6} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#1a1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all" />
+                </div>
+              </div>
+              <button type="submit" className="w-full text-sm font-semibold bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-xl px-3 py-2.5 hover:from-amber-500 hover:to-amber-400 active:scale-[0.98] transition-all shadow-lg shadow-amber-600/20">
+                {mode === "signin" ? "Sign in" : "Create account"}
+              </button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100 dark:border-white/5" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white dark:bg-[#131328] px-2 text-gray-400">{mode === "signin" ? "or" : "or"}</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-slate-500 text-center">
+                {mode === "signin" ? (
+                  <>Don't have an account? <button type="button" onClick={() => { setMode("signup"); setError(""); setSuccess(""); }} className="text-amber-600 dark:text-amber-400 hover:underline font-semibold">Sign up</button></>
+                ) : (
+                  <>Already have an account? <button type="button" onClick={() => { setMode("signin"); setError(""); setSuccess(""); }} className="text-amber-600 dark:text-amber-400 hover:underline font-semibold">Sign in</button></>
+                )}
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -111,6 +172,7 @@ function AppContent() {
           <Route path="/finances" element={<ProtectedRoute><Finances /></ProtectedRoute>} />
           <Route path="/keel" element={<ProtectedRoute><KeelPulse /></ProtectedRoute>} />
           <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
+          <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
@@ -126,7 +188,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <AppContent />
+          <ToastProvider position="top-right">
+            <AppContent />
+          </ToastProvider>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

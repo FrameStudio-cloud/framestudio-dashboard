@@ -4,8 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import PageLayout from "../components/layout/PageLayout";
 import ChartCard from "../components/ChartCard";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import FocusItemForm from "../components/forms/FocusItemForm";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 import { weeklyCompletion, tasksByProject } from "../data/mock";
 
 const CHART_COLORS = ["#d97706", "#f59e0b", "#fbbf24", "#fcd34d"];
@@ -34,29 +36,44 @@ export default function Focus() {
   const [modalOpen, setModalOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("created_at");
+  const { toast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [dragItemId, setDragItemId] = useState(null);
 
   const projectOptions = [...new Set(clients.map((c) => c.name))];
+
+  const sortTasks = (items) => {
+    const sorted = [...items];
+    if (sortBy === "priority") sorted.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.priority] || 1) - ({ high: 0, medium: 1, low: 2 }[b.priority] || 1));
+    if (sortBy === "priority_desc") sorted.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[b.priority] || 1) - ({ high: 0, medium: 1, low: 2 }[a.priority] || 1));
+    if (sortBy === "due_date") sorted.sort((a, b) => new Date(a.dueDate || "9999") - new Date(b.dueDate || "9999"));
+    if (sortBy === "name") sorted.sort((a, b) => (a.content || "").localeCompare(b.content || ""));
+    return sorted;
+  };
 
   const filtered = focusItems.filter((i) => {
     if (projectFilter && i.project !== projectFilter) return false;
     if (statusFilter === "todo" && i.status !== "todo") return false;
     if (statusFilter === "in_progress" && i.status !== "in_progress") return false;
     if (statusFilter === "done" && i.status !== "done") return false;
+    if (priorityFilter !== "all" && i.priority !== priorityFilter) return false;
     return true;
   });
 
-  const todo = focusItems.filter((i) => i.status === "todo" && (!projectFilter || i.project === projectFilter));
-  const inProgress = focusItems.filter((i) => i.status === "in_progress" && (!projectFilter || i.project === projectFilter));
-  const done = focusItems.filter((i) => i.status === "done" && (!projectFilter || i.project === projectFilter));
+  const todo = sortTasks(focusItems.filter((i) => i.status === "todo" && (!projectFilter || i.project === projectFilter) && (priorityFilter === "all" || i.priority === priorityFilter)));
+  const inProgress = sortTasks(focusItems.filter((i) => i.status === "in_progress" && (!projectFilter || i.project === projectFilter) && (priorityFilter === "all" || i.priority === priorityFilter)));
+  const done = sortTasks(focusItems.filter((i) => i.status === "done" && (!projectFilter || i.project === projectFilter) && (priorityFilter === "all" || i.priority === priorityFilter)));
 
   const handleSave = (data) => {
     addFocusItem({ ...data, priority: data.priority || "medium" });
     setModalOpen(false);
+    toast.success("Task added");
   };
 
-  const confirmDelete = (id, content) => {
-    if (window.confirm(`Delete "${content}"?`)) deleteFocusItem(id);
+  const confirmDeleteHandler = (id, content) => {
+    setConfirmDelete({ id, content });
   };
 
   const getDaysLeft = (dueDate) => {
@@ -107,7 +124,7 @@ export default function Focus() {
               </div>
             </div>
           </div>
-          <button onClick={() => confirmDelete(item.id, item.content)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all flex-shrink-0" aria-label="Delete"><IoTrashOutline size={13} /></button>
+          <button onClick={() => confirmDeleteHandler(item.id, item.content)} className="max-md:opacity-100 opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all flex-shrink-0" aria-label="Delete"><IoTrashOutline size={13} /></button>
         </div>
       </div>
     );
@@ -116,13 +133,26 @@ export default function Focus() {
   return (
     <PageLayout title="Focus Board">
       <div className="max-w-6xl mx-auto space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-sm text-gray-400 dark:text-slate-500">
             {todo.length + inProgress.length} active · {done.length} done
             {projectFilter && <span> · {projectFilter}</span>}
           </p>
           <div className="flex items-center gap-2">
-            {projectFilter && <button onClick={() => setProjectFilter(null)} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">Clear filter</button>}
+            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="text-[11px] border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 bg-white dark:bg-[#0f172a] text-gray-700 dark:text-slate-300 focus:outline-none focus:border-amber-400">
+              <option value="all">All priority</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-[11px] border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 bg-white dark:bg-[#0f172a] text-gray-700 dark:text-slate-300 focus:outline-none focus:border-amber-400">
+              <option value="created_at">Newest</option>
+              <option value="priority">High first</option>
+              <option value="priority_desc">Low first</option>
+              <option value="due_date">Due date</option>
+              <option value="name">Name</option>
+            </select>
+            {projectFilter && <button onClick={() => setProjectFilter(null)} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">Clear</button>}
             <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg px-3 py-1.5 hover:bg-amber-500 transition-colors"><IoAdd /> Add task</button>
           </div>
         </div>
@@ -197,6 +227,15 @@ export default function Focus() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add task">
         <FocusItemForm projectOptions={projectOptions} onSave={handleSave} onCancel={() => setModalOpen(false)} />
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { deleteFocusItem(confirmDelete.id); toast.success("Task deleted"); }}
+        title="Delete task?"
+        message={`Remove "${confirmDelete?.content}"?`}
+        confirmDanger
+      />
     </PageLayout>
   );
 }

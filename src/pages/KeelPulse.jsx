@@ -16,7 +16,9 @@ import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import StatusBadge from "../components/StatusBadge";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 import { revenueByPlan } from "../data/mock";
 
 function formatKES(amount) {
@@ -64,12 +66,14 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelActivityLog, announcements, renewShop, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
+  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [announceForm, setAnnounceForm] = useState({ title: "", message: "", link_url: "", bg_image_url: "", variant: "info", priority: 0, starts_at: "", expires_at: "", no_expiry: true, link_text: "Learn More" });
   const [renewingShop, setRenewingShop] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const { toast } = useToast();
   const [dismissalCounts, setDismissalCounts] = useState({});
 
   useEffect(() => {
@@ -109,6 +113,7 @@ export default function KeelPulse() {
     if (!renewingShop) return;
     renewShop(renewingShop.id, days);
     setRenewingShop(null);
+    toast.success(`Subscription renewed for ${days} days`);
   }
 
   return (
@@ -162,11 +167,11 @@ export default function KeelPulse() {
               </ChartCard>
             </div>
 
-            <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-x-auto shadow-sm">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">All shops</h3>
               </div>
-              <div className="hidden md:block">
+              <div className="hidden md:block min-w-[640px]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-white/10">
@@ -199,13 +204,16 @@ export default function KeelPulse() {
                           ) : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <span className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</span>
                             {shop.isExpired && (
                               <button onClick={() => setRenewingShop(shop)} className="flex items-center gap-1 text-[11px] font-medium bg-amber-600 text-white rounded-lg px-2.5 py-1.5 hover:bg-amber-500 transition-colors">
                                 <IoReload size={11} /> Renew
                               </button>
                             )}
+                            <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
+                              <IoTrashOutline size={13} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -218,7 +226,12 @@ export default function KeelPulse() {
                   <div key={shop.name} className={`px-4 py-3 ${shop.isExpired ? "bg-red-50/30 dark:bg-red-900/5" : ""}`}>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
+                        <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
+                          <IoTrashOutline size={12} />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {shop.isExpired ? (
@@ -502,17 +515,28 @@ export default function KeelPulse() {
               };
               if (editingAnnouncement) {
                 await updateAnnouncement(editingAnnouncement.id, payload);
+                toast.success("Announcement updated");
               } else {
                 await addAnnouncement(payload);
+                toast.success("Announcement created");
               }
               setShowCreateModal(false);
               setEditingAnnouncement(null);
-            } catch (err) { alert(err.message); }
+            } catch (err) { toast.error(err.message); }
           }} className="text-xs font-medium bg-amber-600 text-white rounded-lg px-4 py-1.5 hover:bg-amber-500 transition-colors">
             {editingAnnouncement ? "Save changes" : "Create announcement"}
           </button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { deleteShop(confirmDelete.id); toast.success("Shop deleted"); }}
+        title="Delete shop?"
+        message={`Remove "${confirmDelete?.name}" and all associated data permanently?`}
+        confirmDanger
+      />
     </PageLayout>
   );
 }

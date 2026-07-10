@@ -6,8 +6,10 @@ import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import IncomeForm from "../components/forms/IncomeForm";
 import { useData } from "../context/DataContext";
+import { useToast } from "cite-ui";
 import { monthlyComparison, monthlyRevenue, revenueByServiceType } from "../data/mock";
 
 function formatKES(amount) {
@@ -57,6 +59,9 @@ export default function Finances() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("income");
+  const { toast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmDeleteExpense, setConfirmDeleteExpense] = useState(null);
   const [expenseForm, setExpenseForm] = useState({ description: "", amount: "", category: "Hosting", date: "", paymentMethod: "M-Pesa" });
 
   useEffect(() => {
@@ -98,9 +103,9 @@ export default function Finances() {
     total: expenses.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0),
   }));
 
-  const handleSave = (data) => { addIncome(data); setModalOpen(false); };
-  const confirmDelete = (id, desc) => { if (window.confirm(`Delete income entry "${desc}"?`)) deleteIncome(id); };
-  const confirmDeleteExpense = (id, desc) => { if (window.confirm(`Delete expense "${desc}"?`)) deleteExpense(id); };
+  const handleSave = (data) => { addIncome(data); setModalOpen(false); toast.success("Income added"); };
+  const confirmDeleteHandler = (id, desc) => { setConfirmDelete({ id, desc }); };
+  const confirmDeleteExpenseHandler = (id, desc) => { setConfirmDeleteExpense({ id, desc }); };
   const clearFilters = () => setSearchParams({});
 
   const handleAddExpense = () => {
@@ -108,6 +113,7 @@ export default function Finances() {
     addExpense({ ...expenseForm, amount: Number(expenseForm.amount) });
     setExpenseForm({ description: "", amount: "", category: "Hosting", date: "", paymentMethod: "M-Pesa" });
     setExpenseModalOpen(false);
+    toast.success("Expense added");
   };
 
   return (
@@ -206,7 +212,7 @@ export default function Finances() {
             <ChartCard title="Income ledger">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs text-gray-400 dark:text-slate-500">{filteredIncome.length} entries</p>
-                <button onClick={() => exportToCSV(filteredIncome, "income.csv")} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
+                <button onClick={() => { exportToCSV(filteredIncome, "income.csv"); toast.success("CSV exported"); }} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
               </div>
               {filteredIncome.length === 0 ? (
                 <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-6">No entries match this filter.</p>
@@ -223,7 +229,7 @@ export default function Finances() {
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatKES(entry.amount)}</p>
                           <p className="text-xs text-gray-400 dark:text-slate-500">{entry.date}</p>
                         </div>
-                        <button onClick={() => confirmDelete(entry.id, entry.description)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"><IoTrashOutline size={13} /></button>
+                        <button onClick={() => confirmDeleteHandler(entry.id, entry.description)} className="max-md:opacity-100 opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"><IoTrashOutline size={13} /></button>
                       </div>
                     </div>
                   ))}
@@ -263,7 +269,7 @@ export default function Finances() {
             <ChartCard title="Expense log">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs text-gray-400 dark:text-slate-500">{expenses.length} entries</p>
-                <button onClick={() => exportToCSV(expenses, "expenses.csv")} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
+                <button onClick={() => { exportToCSV(expenses, "expenses.csv"); toast.success("CSV exported"); }} className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"><IoDownloadOutline size={12} /> CSV</button>
               </div>
               {expenses.length === 0 ? (
                 <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-6">No expenses recorded.</p>
@@ -284,7 +290,7 @@ export default function Finances() {
                           <p className="text-sm font-semibold text-red-600 dark:text-red-400">{formatKES(entry.amount)}</p>
                           <p className="text-xs text-gray-400 dark:text-slate-500">{entry.date}</p>
                         </div>
-                        <button onClick={() => confirmDeleteExpense(entry.id, entry.description)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"><IoTrashOutline size={13} /></button>
+                        <button onClick={() => confirmDeleteExpenseHandler(entry.id, entry.description)} className="max-md:opacity-100 opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"><IoTrashOutline size={13} /></button>
                       </div>
                     </div>
                   ))}
@@ -305,6 +311,7 @@ export default function Finances() {
                 if (!amount) return;
                 const desc = prompt("Description:", "");
                 addInvoice({ clientName: name, amount: Number(amount), status: "draft", issued: new Date().toISOString().slice(0, 10), due: "", paidAt: null, description: desc || "" });
+                toast.success("Invoice created");
               }} className="flex items-center gap-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg px-3 py-1.5 hover:bg-amber-500 transition-colors"><IoAdd /> Create invoice</button>
             </div>
             <ChartCard title="All invoices">
@@ -331,7 +338,7 @@ export default function Finances() {
                         </div>
                         <select
                           value={inv.status}
-                          onChange={(e) => updateInvoice(inv.id, { status: e.target.value, paidAt: e.target.value === "paid" ? new Date().toISOString().slice(0, 10) : inv.paidAt })}
+                          onChange={(e) => { updateInvoice(inv.id, { status: e.target.value, paidAt: e.target.value === "paid" ? new Date().toISOString().slice(0, 10) : inv.paidAt }); toast.success(`Invoice marked as ${e.target.value}`); }}
                           className="text-[11px] border border-gray-200 dark:border-white/10 rounded px-1.5 py-1 bg-white dark:bg-[#0f172a] text-gray-700 dark:text-slate-300 focus:outline-none focus:border-amber-400"
                         >
                           <option value="draft">Draft</option>
@@ -371,6 +378,24 @@ export default function Finances() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { deleteIncome(confirmDelete.id); toast.success("Income deleted"); }}
+        title="Delete income entry?"
+        message={`Remove "${confirmDelete?.desc}"?`}
+        confirmDanger
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteExpense}
+        onClose={() => setConfirmDeleteExpense(null)}
+        onConfirm={() => { deleteExpense(confirmDeleteExpense.id); toast.success("Expense deleted"); }}
+        title="Delete expense?"
+        message={`Remove "${confirmDeleteExpense?.desc}"?`}
+        confirmDanger
+      />
     </PageLayout>
   );
 }
