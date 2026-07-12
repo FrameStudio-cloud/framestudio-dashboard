@@ -66,15 +66,27 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
+  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, setShopPlan, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [announceForm, setAnnounceForm] = useState({ title: "", message: "", link_url: "", bg_image_url: "", variant: "info", priority: 0, starts_at: "", expires_at: "", no_expiry: true, link_text: "Learn More" });
   const [renewingShop, setRenewingShop] = useState(null);
+  const [planStatus, setPlanStatus] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   const { toast } = useToast();
   const [dismissalCounts, setDismissalCounts] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabaseKeel.from("chat_config").select("shop_id, pro_until, groq_api_key, plan_tier");
+      if (data) {
+        const map = {};
+        data.forEach((c) => { map[c.shop_id] = { proUntil: c.pro_until, groqApiKey: c.groq_api_key, planTier: c.plan_tier || "free" }; });
+        setPlanStatus(map);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!announcements.length) { setDismissalCounts({}); return; }
@@ -177,7 +189,7 @@ export default function KeelPulse() {
                     <tr className="border-b border-gray-100 dark:border-white/10">
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Shop</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Status</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Plan</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Tier</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Expires</th>
                       <th className="text-right px-4 py-3 text-xs font-medium text-gray-400 dark:text-slate-500">Revenue</th>
                     </tr>
@@ -195,7 +207,18 @@ export default function KeelPulse() {
                             <StatusBadge status="delivered" label="Active" />
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-slate-400 capitalize">{shop.plan}</td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={planStatus[shop.id]?.planTier || shop.plan || "free"}
+                            onChange={(e) => { setShopPlan(shop.id, e.target.value); setPlanStatus((prev) => ({ ...prev, [shop.id]: { ...prev[shop.id], planTier: e.target.value } })); }}
+                            className="text-xs bg-transparent border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-gray-600 dark:text-slate-400 focus:outline-none focus:border-amber-500 cursor-pointer"
+                          >
+                            <option value="free">Free</option>
+                            <option value="starter">Starter</option>
+                            <option value="beta">Beta</option>
+                            <option value="pro">Pro</option>
+                          </select>
+                        </td>
                         <td className="px-4 py-3 text-xs text-gray-500 dark:text-slate-400">
                           {shop.expiresAt ? (
                             <span className={shop.isExpired ? "text-red-500 dark:text-red-400 font-medium" : shop.isExpiringSoon ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>
@@ -241,7 +264,12 @@ export default function KeelPulse() {
                       ) : (
                         <StatusBadge status="delivered" label="Active" />
                       )}
-                      <span className="text-xs text-gray-400 dark:text-slate-500 capitalize">{shop.plan}</span>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${
+                        (planStatus[shop.id]?.planTier || shop.plan) === "pro" ? "text-purple-600 dark:text-purple-400 bg-purple-500/10" :
+                        (planStatus[shop.id]?.planTier || shop.plan) === "beta" ? "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10" :
+                        (planStatus[shop.id]?.planTier || shop.plan) === "starter" ? "text-blue-600 dark:text-blue-400 bg-blue-500/10" :
+                        "text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5"
+                      }`}>{planStatus[shop.id]?.planTier || shop.plan || "free"}</span>
                       {shop.expiresAt && (
                         <span className={`text-[11px] ${shop.isExpired ? "text-red-500" : shop.isExpiringSoon ? "text-amber-600" : "text-gray-400"}`}>
                           {shop.isExpired ? "Expired " : "Expires "}{formatDate(shop.expiresAt)}
