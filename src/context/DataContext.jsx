@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { supabaseKeel } from "../lib/supabaseKeel";
-import { mockClients, mockLinks, mockIncome, mockFocusItems, mockExpenses, mockInvoices, mockActivityFeed, mockNotifications } from "../data/mock";
+import { mockClients, mockLinks, mockIncome, mockFocusItems, mockExpenses, mockInvoices, mockActivityFeed, mockNotifications, mockKeelPulse } from "../data/mock";
 
 function toCamelCase(obj) {
   if (!obj || typeof obj !== "object") return obj;
@@ -36,8 +36,8 @@ export function DataProvider({ children }) {
   const [focusItems, setFocusItems] = useState(isSupabase ? [] : mockFocusItems);
   const [activityFeed, setActivityFeed] = useState(mockActivityFeed);
   const [notifications, setNotifications] = useState(isSupabase ? [] : mockNotifications);
-  const [keelShops, setKeelShops] = useState([]);
-  const [keelActivityLog, setKeelActivityLog] = useState([]);
+  const [keelShops, setKeelShops] = useState(isSupabase ? [] : mockKeelPulse.shops);
+  const [keelActivityLog, setKeelActivityLog] = useState(isSupabase ? [] : mockKeelPulse.activityLog);
   const [announcements, setAnnouncements] = useState([]);
 
   // Fetch all data from Supabase on mount
@@ -95,7 +95,7 @@ export function DataProvider({ children }) {
         );
 
         // Also fetch from the main `shops` table (where mobile app signups land)
-        const { data: appShops } = await supabaseKeel.from("shops").select("id, name, created_at, subscription_expires_at").order("created_at", { ascending: false });
+        const { data: appShops } = await supabaseKeel.from("shops").select("id, name, created_at, subscription_expires_at").is("scheduled_deletion_at", null).order("created_at", { ascending: false });
 
         if (!cancelled) {
           keelResults.forEach((result, i) => {
@@ -112,7 +112,9 @@ export function DataProvider({ children }) {
               const existingNames = new Set(prev.map((s) => s.name.toLowerCase().trim()));
               const merged = [...prev];
               appShops.forEach((s) => {
-                if (!existingNames.has(s.name.toLowerCase().trim())) {
+                const nameKey = s.name.toLowerCase().trim();
+                if (!existingNames.has(nameKey)) {
+                  existingNames.add(nameKey);
                   merged.push({
                     id: s.id,
                     name: s.name,

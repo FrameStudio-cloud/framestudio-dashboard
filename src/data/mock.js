@@ -51,15 +51,15 @@ export const mockKeelPulse = {
   flaggedIssues: 1,
   monthlySubscriptionRevenue: 24000,
   shops: [
-    { name: "Zuri Fashion", status: "active", plan: "standard", revenue: 5000 },
-    { name: "Mini Electricals", status: "active", plan: "standard", revenue: 5000 },
-    { name: "Ancy Luxe", status: "active", plan: "premium", revenue: 8000 },
-    { name: "Campus Glow", status: "active", plan: "standard", revenue: 5000 },
-    { name: "Lumière Hair", status: "active", plan: "starter", revenue: 1000 },
-    { name: "TechHive KE", status: "active", plan: "standard", revenue: 5000 },
-    { name: "Fresh Mart", status: "active", plan: "starter", revenue: 1000 },
-    { name: "Urban Styles", status: "pending", plan: "standard", revenue: 0 },
-    { name: "Gadget Hub", status: "pending", plan: "starter", revenue: 0 },
+    { id: "1", name: "Zuri Fashion", status: "active", plan: "starter", revenue: 5000, subscriptionExpiresAt: new Date(Date.now() + 45 * 86400000).toISOString() },
+    { id: "2", name: "Mini Electricals", status: "active", plan: "starter", revenue: 5000, subscriptionExpiresAt: new Date(Date.now() + 30 * 86400000).toISOString() },
+    { id: "3", name: "Ancy Luxe", status: "active", plan: "pro", revenue: 8000, subscriptionExpiresAt: new Date(Date.now() + 60 * 86400000).toISOString() },
+    { id: "4", name: "Campus Glow", status: "active", plan: "starter", revenue: 5000, subscriptionExpiresAt: new Date(Date.now() + 20 * 86400000).toISOString() },
+    { id: "5", name: "Lumière Hair", status: "active", plan: "beta", revenue: 1000, subscriptionExpiresAt: new Date(Date.now() + 3 * 86400000).toISOString() },
+    { id: "6", name: "TechHive KE", status: "active", plan: "pro", revenue: 5000, subscriptionExpiresAt: new Date(Date.now() + 15 * 86400000).toISOString() },
+    { id: "7", name: "Fresh Mart", status: "expired", plan: "free", revenue: 0, subscriptionExpiresAt: new Date(Date.now() - 5 * 86400000).toISOString() },
+    { id: "8", name: "Urban Styles", status: "active", plan: "starter", revenue: 0, subscriptionExpiresAt: new Date(Date.now() + 10 * 86400000).toISOString() },
+    { id: "9", name: "Gadget Hub", status: "active", plan: "beta", revenue: 0, subscriptionExpiresAt: new Date(Date.now() + 2 * 86400000).toISOString() },
   ],
   approvals: [
     { id: "a1", shopName: "Urban Styles", owner: "James K.", plan: "standard", submittedAt: "2026-06-27T10:30:00", status: "pending" },
@@ -147,9 +147,10 @@ export const monthlyComparison = [
 ]
 
 export const revenueByPlan = [
-  { plan: "Starter", revenue: 2000 },
-  { plan: "Standard", revenue: 15000 },
-  { plan: "Premium", revenue: 8000 },
+  { plan: "Free", revenue: 0 },
+  { plan: "Starter", revenue: 15000 },
+  { plan: "Beta", revenue: 2000 },
+  { plan: "Pro", revenue: 8000 },
 ]
 
 export const weeklyCompletion = [
