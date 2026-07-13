@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoCalendarOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline } from "react-icons/io5";
+import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoCalendarOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline, IoGitNetworkOutline } from "react-icons/io5";
 import { HiOutlineSquares2X2 } from "react-icons/hi2";
 import Tooltip from "../Tooltip";
 
@@ -37,6 +37,12 @@ const groups = [
     items: [
       { label: "Analytics", icon: <IoStatsChartOutline size={18} />, path: "/analytics" },
       { label: "Reports", icon: <IoDocumentTextOutline size={18} />, path: "/reports" },
+    ],
+  },
+  {
+    label: "Visualize",
+    items: [
+      { label: "Schema Flow", icon: <IoGitNetworkOutline size={18} />, path: "/schema" },
     ],
   },
 ];

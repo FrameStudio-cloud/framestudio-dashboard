@@ -16,6 +16,7 @@ const Focus = lazy(() => import("./pages/Focus"));
 const Timeline = lazy(() => import("./pages/Timeline"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Reports = lazy(() => import("./pages/Reports"));
+const SchemaFlow = lazy(() => import("./pages/SchemaFlow"));
 
 function Loading() {
   return (
@@ -172,6 +173,7 @@ function AppContent() {
             <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/schema" element={<ProtectedRoute><SchemaFlow /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

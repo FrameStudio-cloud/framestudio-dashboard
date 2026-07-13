@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FrameStudio — Database ER Diagram</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #f59e0b;
+    margin-bottom: 0.25rem;
+  }
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+  }
+  .subtitle {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+  }
+  .database-group {
+    margin-bottom: 3rem;
+  }
+  .db-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #1e293b;
+    border-radius: 0.75rem;
+    border: 1px solid #334155;
+  }
+  .db-header .badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-main { background: #f59e0b; color: #0f172a; }
+  .badge-keel { background: #8b5cf6; color: #fff; }
+  .db-header h3 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+  .db-header code { font-size: 0.8rem; color: #64748b; }
+  .diagram-wrapper {
+    background: #1e293b;
+    border-radius: 1rem;
+    border: 1px solid #334155;
+    padding: 1.5rem;
+    overflow-x: auto;
+  }
+  .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+  .legend {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: #1e293b;
+    border-radius: 0.75rem;
+    border: 1px solid #334155;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-user { background: #3b82f6; }
+  .dot-keel { background: #8b5cf6; }
+  .dot-finance { background: #22c55e; }
+  .dot-client { background: #f59e0b; }
+  .dot-link { background: #06b6d4; }
+  .dot-focus { background: #ef4444; }
+  .dot-shop { background: #ec4899; }
+  .dot-chat { background: #14b8a6; }
+  .dot-attr { background: #f97316; }
+</style>
+</head>
+<body>
+
+<h1>FrameStudio Dashboard</h1>
+<h2>Database Entity-Relationship Diagram</h2>
+<p class="subtitle">
+  Visual diagram of all Supabase tables and their foreign-key relationships.
+  Tables are colour-coded by domain. Lines represent <code>REFERENCES</code> constraints.
+</p>
+
+<!-- ============================================================ -->
+<!-- FRAMESTUDIO DASHBOARD (MAIN) -->
+<!-- ============================================================ -->
+<div class="database-group">
+  <div class="db-header">
+    <span class="badge badge-main">Main</span>
+    <h3>FrameStudio Dashboard</h3>
+    <code>sjhwllnhuozxeplpygnc</code>
+  </div>
+  <div class="diagram-wrapper">
+    <pre class="mermaid">
+erDiagram
+    auth_users ||--o{ clients : "user_id"
+    auth_users ||--o{ links : "user_id"
+    auth_users ||--o{ income : "user_id"
+    auth_users ||--o{ expenses : "user_id"
+    auth_users ||--o{ invoices : "user_id"
+    auth_users ||--o{ focus_items : "user_id"
+    auth_users ||--o{ notifications : "user_id"
+
+    clients {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text name
+        text business
+        text email
+        text phone
+        text whatsapp
+        text live_url
+        text supabase_project
+        text vercel_dashboard
+        text github_repo
+        text project_status "planning | building | delivered | on_retainer"
+        text invoice_status "pending | partial | paid"
+        bigint project_value
+        text what_was_built
+        text stage "discovery | development | delivered"
+        text notes
+        timestamptz created_at
+    }
+
+    links {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text client_name
+        text live_url
+        text supabase_project
+        text vercel_dashboard
+        text github_repo
+        text notes
+        text category "client-sites | products | internal"
+        boolean favourite
+        jsonb tags
+        timestamptz created_at
+    }
+
+    income {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text client_name
+        bigint amount
+        text description
+        date date
+        text payment_method "M-Pesa | Bank | Cash"
+        timestamptz created_at
+    }
+
+    expenses {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text description
+        bigint amount
+        text category "Hosting | Domains | Utilities | Software | Contractors"
+        date date
+        text payment_method
+        timestamptz created_at
+    }
+
+    invoices {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text client_name
+        bigint amount
+        text status "draft | sent | partial | paid"
+        date issued
+        date due
+        date paid_at
+        text description
+        timestamptz created_at
+    }
+
+    focus_items {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text content
+        text project
+        boolean completed
+        text priority "low | medium | high"
+        date due_date
+        text status "todo | in_progress | done"
+        integer sort_order
+        timestamptz created_at
+    }
+
+    notifications {
+        uuid id PK
+        uuid user_id FK "auth.users.id"
+        text type "generic | overdue_invoice | pending_approval | task_due"
+        text message
+        text link
+        boolean read
+        timestamptz created_at
+    }
+
+    keel_shops {
+        uuid id PK
+        text name
+        text status "pending | active | expired"
+        text plan "starter | pro | beta | free"
+        bigint revenue
+        text owner
+        timestamptz created_at
+    }
+
+    keel_approvals {
+        uuid id PK
+        text shop_name
+        text owner
+        text plan
+        text status "pending | approved | rejected"
+        timestamptz submitted_at
+        timestamptz created_at
+    }
+
+    keel_activity_log {
+        uuid id PK
+        text action "new_shop | payment | approval | flag | subscription"
+        text shop
+        text detail
+        timestamptz timestamp
+    }
+    </pre>
+  </div>
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot dot-user"></span> Auth / User-owned</span>
+    <span class="legend-item"><span class="legend-dot dot-client"></span> Clients</span>
+    <span class="legend-item"><span class="legend-dot dot-link"></span> Links</span>
+    <span class="legend-item"><span class="legend-dot dot-finance"></span> Finance</span>
+    <span class="legend-item"><span class="legend-dot dot-focus"></span> Focus</span>
+    <span class="legend-item"><span class="legend-dot dot-keel"></span> Keel (shared)</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- KEEL POS -->
+<!-- ============================================================ -->
+<div class="database-group">
+  <div class="db-header">
+    <span class="badge badge-keel">Keel</span>
+    <h3>Keel POS</h3>
+    <code>hmcowpwfefeeossztuem</code>
+  </div>
+  <div class="diagram-wrapper">
+    <pre class="mermaid">
+erDiagram
+    shops ||--o{ store_settings : "shop_id"
+    shops ||--o{ users : "shop_id"
+    shops ||--o{ products : "shop_id"
+    shops ||--o{ catalogue : "shop_id"
+    shops ||--o{ banners : "shop_id"
+    shops ||--o{ sales : "shop_id"
+    shops ||--o{ payments : "shop_id"
+    shops ||--o{ posts : "shop_id"
+    shops ||--o{ stock_movements : "shop_id"
+    shops ||--o{ page_views : "shop_id"
+    shops ||--o{ expenses : "shop_id"
+    shops ||--o{ product_attribute_values : "shop_id"
+    shops ||--o{ catalogue_attribute_values : "shop_id"
+    shops ||--o{ chat_config : "shop_id"
+    shops ||--o{ chat_faqs : "shop_id"
+    shops ||--o{ chat_messages : "shop_id"
+    shops ||--o{ chat_callbacks : "shop_id"
+    shops ||--o{ chat_stock_alerts : "shop_id"
+    shops ||--o{ announcement_dismissals : "shop_id"
+
+    products ||--o{ catalogue : "product_id"
+    products ||--o{ product_attribute_values : "product_id"
+
+    catalogue ||--o{ catalogue_attribute_values : "catalogue_id"
+
+    categories ||--o{ category_attributes : "category_id"
+    category_attributes ||--o{ product_attribute_values : "attribute_id"
+    category_attributes ||--o{ catalogue_attribute_values : "attribute_id"
+
+    announcements ||--o{ announcement_dismissals : "announcement_id"
+
+    shops {
+        uuid id PK
+        text name
+        text slug UK
+        text business_category
+        timestamptz subscription_expires_at
+        timestamptz scheduled_deletion_at
+        timestamptz category_changed_at
+        timestamptz created_at
+    }
+
+    store_settings {
+        uuid id PK
+        uuid shop_id FK UK
+        text store_name
+        text store_phone
+        text store_address
+        text currency_symbol "default: KSh"
+        integer low_stock_threshold "default: 6"
+        text default_payment
+        text receipt_footer
+        text theme "default: dark"
+        text website_url
+        text whatsapp
+        jsonb business_hours
+        text terms_of_service
+        text email
+        text description
+        text instagram
+        text facebook
+        text tiktok
+        text logo_url
+        jsonb notification_preferences
+    }
+
+    users {
+        uuid id PK
+        uuid auth_user_id UK
+        uuid shop_id FK
+        text name
+        text email
+        timestamptz created_at
+    }
+
+    products {
+        uuid id PK
+        uuid shop_id FK
+        text name
+        text category
+        numeric price
+        integer stock "default: 0"
+        jsonb variants
+        text barcode
+        numeric cost_price
+        text image
+        text badge
+        timestamptz badge_ends_at
+        numeric sale_price
+        timestamptz sale_ends_at
+        boolean new_arrival "default: false"
+        timestamptz created_at
+    }
+
+    catalogue {
+        uuid id PK
+        uuid shop_id FK
+        uuid product_id FK
+        text name
+        text type
+        text category
+        numeric price
+        text image
+        boolean available "default: true"
+        boolean featured "default: false"
+        jsonb variants
+        jsonb specs
+        text includes
+        numeric sale_price
+        timestamptz sale_ends_at
+        text badge
+        timestamptz badge_ends_at
+        boolean new_arrival "default: false"
+        timestamptz created_at
+    }
+
+    banners {
+        uuid id PK
+        uuid shop_id FK
+        text type "hero | promo | announcement"
+        text title
+        text subtitle
+        text message
+        text image_url
+        text link_url
+        boolean active "default: true"
+        integer sort_order "default: 0"
+    }
+
+    sales {
+        uuid id PK
+        uuid shop_id FK
+        uuid product_id
+        text product_name
+        numeric amount
+        integer quantity
+        text method
+        timestamptz created_at
+    }
+
+    payments {
+        uuid id PK
+        uuid shop_id FK
+        text invoice_id
+        text provider
+        numeric amount
+        text status
+        timestamptz created_at
+    }
+
+    posts {
+        uuid id PK
+        uuid shop_id FK
+        text platform
+        text caption
+        text status
+        timestamptz scheduled_at
+        integer likes "default: 0"
+        integer comments "default: 0"
+        integer reach "default: 0"
+        timestamptz created_at
+    }
+
+    stock_movements {
+        uuid id PK
+        uuid shop_id FK
+        uuid product_id
+        text product_name
+        integer change
+        text reason
+        timestamptz created_at
+    }
+
+    page_views {
+        uuid id PK
+        uuid shop_id FK
+        text page
+        text product_name
+        text referrer
+        text user_agent
+        timestamptz created_at
+    }
+
+    expenses {
+        uuid id PK
+        uuid shop_id FK
+        text description
+        numeric amount
+        text category
+        text payment_method
+        date expense_date
+        timestamptz created_at
+    }
+
+    categories {
+        uuid id PK
+        text name
+        text slug UK
+        timestamptz created_at
+    }
+
+    category_attributes {
+        uuid id PK
+        uuid category_id FK
+        text name
+        text type "select | text | number"
+        jsonb options
+        boolean required "default: false"
+        integer sort_order "default: 0"
+    }
+
+    product_attribute_values {
+        uuid id PK
+        uuid product_id FK
+        uuid attribute_id FK
+        uuid shop_id FK
+        text value
+    }
+
+    catalogue_attribute_values {
+        uuid id PK
+        uuid catalogue_id FK
+        uuid attribute_id FK
+        uuid shop_id FK
+        text value
+    }
+
+    announcements {
+        uuid id PK
+        text title
+        text message
+        text link_url
+        boolean active "default: true"
+        text bg_image_url
+        integer priority "default: 0"
+        timestamptz starts_at
+        timestamptz expires_at
+        text variant "info | warning | alert | sale | maintenance"
+        text link_text "default: Learn More"
+        timestamptz created_at
+    }
+
+    announcement_dismissals {
+        uuid id PK
+        uuid announcement_id FK
+        uuid shop_id FK
+        timestamptz dismissed_at
+    }
+
+    chat_config {
+        uuid shop_id PK FK
+        boolean enabled "default: true"
+        text welcome_message
+        text widget_color "default: #3B82F6"
+        text position "right | left"
+        text whatsapp_number
+        timestamptz pro_until
+        text groq_api_key
+        timestamptz created_at
+    }
+
+    chat_faqs {
+        bigint id PK "identity"
+        uuid shop_id FK
+        text question
+        text answer
+        integer sort_order "default: 0"
+        timestamptz created_at
+    }
+
+    chat_messages {
+        bigint id PK "identity"
+        uuid shop_id FK
+        text question
+        text answer
+        text customer_name
+        text feedback
+        text status "unanswered | answered"
+        timestamptz created_at
+    }
+
+    chat_callbacks {
+        bigint id PK "identity"
+        uuid shop_id FK
+        text name
+        text phone
+        text question
+        text status "pending | contacted | done"
+        timestamptz created_at
+    }
+
+    chat_stock_alerts {
+        bigint id PK "identity"
+        uuid shop_id FK
+        text product_name
+        text customer_note
+        text status "pending | resolved"
+        timestamptz created_at
+    }
+
+    keel_shops {
+        uuid id PK
+        text name
+        text status "active | expired"
+        text plan "starter | pro | beta | free"
+        bigint revenue
+        text owner
+        timestamptz subscription_expires_at
+        timestamptz created_at
+    }
+
+    keel_approvals {
+        uuid id PK
+        text shop_name
+        text owner
+        text plan
+        text status "pending | approved | rejected"
+        timestamptz submitted_at
+        timestamptz created_at
+    }
+
+    keel_activity_log {
+        uuid id PK
+        text action
+        text shop
+        text detail
+        timestamptz timestamp
+    }
+    </pre>
+  </div>
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot dot-shop"></span> Shop (central hub)</span>
+    <span class="legend-item"><span class="legend-dot dot-chat"></span> Chat System</span>
+    <span class="legend-item"><span class="legend-dot dot-attr"></span> Attributes / Categories</span>
+    <span class="legend-item"><span class="legend-dot dot-finance"></span> Finance / Sales</span>
+    <span class="legend-item"><span class="legend-dot dot-keel"></span> Keel Admin</span>
+    <span class="legend-item"><span class="legend-dot dot-user"></span> Users</span>
+  </div>
+</div>
+
+<div style="margin-top: 2rem; padding: 1rem; background: #1e293b; border-radius: 0.75rem; border: 1px solid #334155; font-size: 0.8rem; color: #64748b; text-align: center;">
+  Generated from live Supabase schema &bull;
+  <code style="color: #f59e0b;">sjhwllnhuozxeplpygnc</code> (Main) &bull;
+  <code style="color: #8b5cf6;">hmcowpwfefeeossztuem</code> (Keel POS)
+</div>
+
+<script>
+  mermaid.initialize({
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#334155',
+      lineColor: '#f59e0b',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#1e293b',
+      clusterBkg: '#0f172a',
+      clusterBorder: '#1e293b',
+      edgeLabelBackground: '#1e293b',
+      nodeBorder: '#334155',
+    },
+    er: {
+      layoutDirection: 'TB',
+      minEntityWidth: 120,
+      entityPaddingTop: 8,
+      entityPaddingBottom: 8,
+      entityPaddingLeft: 10,
+      entityPaddingRight: 10,
+      stroke: 'normal',
+      fillStyle: 'transparent',
+    },
+    fontFamily: '"Inter", system-ui, sans-serif',
+  });
+</script>
+
+</body>
+</html>

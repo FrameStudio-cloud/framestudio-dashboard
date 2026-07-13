@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo } 
 import { supabase } from "../lib/supabase";
 import { supabaseKeel } from "../lib/supabaseKeel";
 import { mockClients, mockLinks, mockIncome, mockFocusItems, mockExpenses, mockInvoices, mockActivityFeed, mockNotifications, mockKeelPulse } from "../data/mock";
+import { defaultDiagrams } from "../data/schemaDiagrams";
 
 function toCamelCase(obj) {
   if (!obj || typeof obj !== "object") return obj;
@@ -56,10 +57,102 @@ export function DataProvider({ children }) {
   const [keelActivityLog, setKeelActivityLog] = useState(isSupabase ? [] : mockKeelPulse.activityLog);
   const [announcements, setAnnouncements] = useState([]);
 
+  // ─── SCHEMA DIAGRAMS (localStorage + Supabase) ───
+  const [schemaDiagrams, setSchemaDiagrams] = useState(() => {
+    try {
+      const stored = localStorage.getItem("fs-schema-diagrams");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...defaultDiagrams];
+          parsed.forEach((pd) => {
+            const idx = merged.findIndex((m) => m.id === pd.id);
+            if (idx >= 0) merged[idx] = pd;
+            else merged.push(pd);
+          });
+          return merged;
+        }
+      }
+    } catch {}
+    return defaultDiagrams;
+  });
+
+  const saveDiagramsToStorage = useCallback((diagrams) => {
+    try {
+      localStorage.setItem("fs-schema-diagrams", JSON.stringify(diagrams));
+    } catch {}
+  }, []);
+
+  const upsertDiagram = useCallback(async (diagram) => {
+    setSchemaDiagrams((prev) => {
+      const idx = prev.findIndex((d) => d.id === diagram.id);
+      let next;
+      if (idx >= 0) {
+        next = [...prev];
+        next[idx] = { ...prev[idx], ...diagram };
+      } else {
+        next = [diagram, ...prev];
+      }
+      saveDiagramsToStorage(next);
+      return next;
+    });
+    if (isSupabase) {
+      const record = {
+        diagram_id: diagram.id,
+        name: diagram.name,
+        description: diagram.description || "",
+        diagram_type: diagram.diagramType || "flow",
+        data: {
+          tables: diagram.tables,
+          relationships: diagram.relationships,
+          zoom: diagram.zoom || 0.75,
+          projectRef: diagram.projectRef || null,
+        },
+      };
+      const { data: existing } = await supabase
+        .from("schema_diagrams")
+        .select("id")
+        .eq("diagram_id", diagram.id)
+        .maybeSingle();
+      if (existing) {
+        await supabase.from("schema_diagrams").update({ ...record, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      } else {
+        await supabase.from("schema_diagrams").insert(record);
+      }
+    }
+  }, [isSupabase, saveDiagramsToStorage]);
+
+  const deleteDiagram = useCallback(async (id) => {
+    setSchemaDiagrams((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      saveDiagramsToStorage(next);
+      return next;
+    });
+    if (isSupabase) {
+      await supabase.from("schema_diagrams").delete().eq("diagram_id", id);
+    }
+  }, [isSupabase, saveDiagramsToStorage]);
+
   // Fetch all data from Supabase on mount
   useEffect(() => {
     if (!isSupabase) return;
     let cancelled = false;
+
+    async function seedDefaultDiagrams() {
+      const inserts = defaultDiagrams.map((d) => ({
+        diagram_id: d.id,
+        name: d.name,
+        description: d.description || "",
+        diagram_type: d.diagramType || "flow",
+        data: {
+          tables: d.tables,
+          relationships: d.relationships,
+          zoom: d.zoom || 0.75,
+          projectRef: d.projectRef || null,
+        },
+      }));
+      await supabase.from("schema_diagrams").insert(inserts);
+    }
 
     async function fetchAll() {
       const tables = [
@@ -155,6 +248,38 @@ export function DataProvider({ children }) {
       if (supabaseKeel) {
         const { data: ann } = await supabaseKeel.from("announcements").select("*").order("created_at", { ascending: false }).limit(50);
         if (!cancelled && ann) setAnnouncements(ann.map(toCamelCase));
+      }
+
+      // Fetch schema_diagrams from Supabase and merge with defaults
+      const { data: diagramData } = await supabase
+        .from("schema_diagrams")
+        .select("*")
+        .order("updated_at", { ascending: false });
+      if (!cancelled && diagramData) {
+        if (diagramData.length > 0) {
+          const saved = diagramData.map(toCamelCase).map((d) => ({
+            id: d.diagramId,
+            name: d.name,
+            description: d.description,
+            diagramType: d.diagramType,
+            projectRef: d.data?.projectRef || null,
+            zoom: d.data?.zoom || 0.75,
+            tables: d.data?.tables || [],
+            relationships: d.data?.relationships || [],
+          }));
+          setSchemaDiagrams((prev) => {
+            const merged = [...prev];
+            saved.forEach((sd) => {
+              const idx = merged.findIndex((m) => m.id === sd.id);
+              if (idx >= 0) merged[idx] = sd;
+              else merged.push(sd);
+            });
+            return merged;
+          });
+        } else {
+          // Seed defaults to Supabase for this user
+          seedDefaultDiagrams();
+        }
       }
 
       if (!cancelled) setReady(true);
@@ -637,6 +762,7 @@ export function DataProvider({ children }) {
       markNotificationRead, markAllNotificationsRead,
       renewShop, deleteShop, setShopPlan,
       addAnnouncement, updateAnnouncement, deleteAnnouncement,
+      schemaDiagrams, upsertDiagram, deleteDiagram,
       monthlyRevenue, revenueByClient, clientStatusBreakdown, invoiceStatusDistribution,
       monthlyComparison, allTimeStats, tasksByProject, revenueByPlan, monthOverMonthGrowth, activeShopsCount,
     }}>
