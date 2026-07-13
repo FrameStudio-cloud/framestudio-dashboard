@@ -84,7 +84,7 @@ export default function Sidebar({ open, onClose }) {
       <aside
         className={`
           h-screen bg-[#0f172a] border-r border-white/10
-          flex flex-col flex-shrink-0
+          flex flex-col flex-shrink-0 overflow-hidden
           fixed lg:static z-40 inset-y-0 left-0
           transition-all duration-200
           rounded-r-[28px]
@@ -107,7 +107,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-2 flex flex-col gap-3 overflow-y-auto">
+        <nav className="flex-1 p-2 flex flex-col gap-3 overflow-y-auto overflow-x-hidden">
           {groups.map((group) => (
             <div key={group.label}>
               {!collapsed && (
