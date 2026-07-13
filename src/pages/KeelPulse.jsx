@@ -359,7 +359,7 @@ export default function KeelPulse() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-gray-800 dark:text-white">{a.title}</p>
-                          {isActive ? (
+                          {a.isActive ? (
                             <span className="text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">Active</span>
                           ) : (
                             <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded">Inactive</span>

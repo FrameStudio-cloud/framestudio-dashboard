@@ -23,6 +23,22 @@ function toSnakeCase(obj) {
   }, {});
 }
 
+function applyStoredReadStatus(notifs) {
+  try {
+    const stored = JSON.parse(localStorage.getItem("fs-notifications-read") || "{}");
+    if (Object.keys(stored).length === 0) return notifs;
+    return notifs.map((n) => stored[n.id] !== undefined ? { ...n, read: stored[n.id] } : n);
+  } catch { return notifs; }
+}
+
+function saveReadStatus(id, read) {
+  try {
+    const stored = JSON.parse(localStorage.getItem("fs-notifications-read") || "{}");
+    stored[id] = read;
+    localStorage.setItem("fs-notifications-read", JSON.stringify(stored));
+  } catch {}
+}
+
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
@@ -35,7 +51,7 @@ export function DataProvider({ children }) {
   const [invoices, setInvoices] = useState(isSupabase ? [] : mockInvoices);
   const [focusItems, setFocusItems] = useState(isSupabase ? [] : mockFocusItems);
   const [activityFeed, setActivityFeed] = useState(mockActivityFeed);
-  const [notifications, setNotifications] = useState(isSupabase ? [] : mockNotifications);
+  const [notifications, setNotifications] = useState(() => applyStoredReadStatus(isSupabase ? [] : mockNotifications));
   const [keelShops, setKeelShops] = useState(isSupabase ? [] : mockKeelPulse.shops);
   const [keelActivityLog, setKeelActivityLog] = useState(isSupabase ? [] : mockKeelPulse.activityLog);
   const [announcements, setAnnouncements] = useState([]);
@@ -66,7 +82,10 @@ export function DataProvider({ children }) {
         const key = tables[i].key;
         if (result.status === "fulfilled" && result.value.data) {
           const setter = { setClients, setLinks, setIncome, setExpenses, setInvoices, setFocusItems, setNotifications }[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
-          if (setter) setter(result.value.data.map(toCamelCase));
+          if (setter) {
+            const data = result.value.data.map(toCamelCase);
+            setter(key === "notifications" ? applyStoredReadStatus(data) : data);
+          }
         }
       });
 
@@ -385,12 +404,16 @@ export function DataProvider({ children }) {
   // --- NOTIFICATIONS ---
   const markNotificationRead = useCallback(async (id) => {
     if (isSupabase) await supabase.from("notifications").update({ read: true }).eq("id", id);
+    saveReadStatus(id, true);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, [isSupabase]);
 
   const markAllNotificationsRead = useCallback(async () => {
     if (isSupabase) await supabase.from("notifications").update({ read: true }).neq("id", "none");
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => {
+      prev.forEach((n) => saveReadStatus(n.id, true));
+      return prev.map((n) => ({ ...n, read: true }));
+    });
   }, [isSupabase]);
 
   // --- KEEL ---
