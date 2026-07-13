@@ -13,7 +13,6 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import ClientForm from "../components/forms/ClientForm";
 import { useData } from "../context/DataContext";
 import { useToast } from "cite-ui";
-import { revenueByClient, invoiceStatusDistribution } from "../data/mock";
 
 function formatKES(amount) {
   return `KES ${(amount || 0).toLocaleString()}`;
@@ -45,7 +44,7 @@ const stageOrder = ["discovery", "design", "development", "review", "delivered"]
 export default function Clients() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { clients, invoices, income, addClient, updateClient, deleteClient, updateInvoice } = useData();
+  const { clients, invoices, income, addClient, updateClient, deleteClient, updateInvoice, revenueByClient, invoiceStatusDistribution } = useData();
   const actionAdd = searchParams.get("action") === "add";
   const nameFilter = searchParams.get("name");
   const statusFilter = searchParams.get("status");

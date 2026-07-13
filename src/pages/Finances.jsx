@@ -10,10 +10,10 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import IncomeForm from "../components/forms/IncomeForm";
 import { useData } from "../context/DataContext";
 import { useToast } from "cite-ui";
-import { monthlyComparison, monthlyRevenue, revenueByServiceType } from "../data/mock";
+import { revenueByServiceType } from "../data/mock";
 
 function formatKES(amount) {
-  return `KES ${amount.toLocaleString()}`;
+  return `KES ${(amount || 0).toLocaleString()}`;
 }
 
 const CHART_COLORS = ["#d97706", "#f59e0b", "#10b981", "#ef4444"];
@@ -49,17 +49,22 @@ const expenseCategories = ["Hosting", "Domains", "Utilities", "Software", "Contr
 
 export default function Finances() {
   const navigate = useNavigate();
-  const { income, expenses, clients, addIncome, deleteIncome, addExpense, deleteExpense, invoices, updateInvoice } = useData();
+  const { income, expenses, clients, addIncome, deleteIncome, addExpense, deleteExpense, invoices, updateInvoice, monthlyRevenue, monthlyComparison } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const actionAdd = searchParams.get("action") === "add";
   const clientFilter = searchParams.get("client");
   const filterMonth = searchParams.get("month");
+
+  const thisYear = new Date().getFullYear();
+  const thisMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+  const lastMonth = String(new Date().getMonth()).padStart(2, "0");
 
   const [modalOpen, setModalOpen] = useState(actionAdd);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("income");
   const { toast } = useToast();
+  const [invoiceForm, setInvoiceForm] = useState({ clientName: "", amount: "", description: "", due: "" });
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDeleteExpense, setConfirmDeleteExpense] = useState(null);
   const [expenseForm, setExpenseForm] = useState({ description: "", amount: "", category: "Hosting", date: "", paymentMethod: "M-Pesa" });
@@ -70,9 +75,9 @@ export default function Finances() {
     }
   }, []);
 
-  const thisMonthIncome = income.filter((i) => i.date.startsWith("2026-06")).reduce((s, i) => s + i.amount, 0);
-  const lastMonthIncome = income.filter((i) => i.date.startsWith("2026-05")).reduce((s, i) => s + i.amount, 0);
-  const thisMonthExpenses = expenses.filter((e) => e.date.startsWith("2026-06")).reduce((s, e) => s + e.amount, 0);
+  const thisMonthIncome = income.filter((i) => i.date.startsWith(`${thisYear}-${thisMonth}`)).reduce((s, i) => s + i.amount, 0);
+  const lastMonthIncome = income.filter((i) => i.date.startsWith(`${thisYear}-${lastMonth}`)).reduce((s, i) => s + i.amount, 0);
+  const thisMonthExpenses = expenses.filter((e) => e.date.startsWith(`${thisYear}-${thisMonth}`)).reduce((s, e) => s + e.amount, 0);
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const profit = totalIncome - totalExpenses;
@@ -93,7 +98,7 @@ export default function Finances() {
     if (clientFilter && entry.clientName !== clientFilter) return false;
     if (filterMonth) {
       const monthNum = MONTHS.indexOf(filterMonth);
-      if (monthNum > 0 && !entry.date.startsWith(`2026-${String(monthNum).padStart(2, "0")}`)) return false;
+      if (monthNum > 0 && !entry.date.startsWith(`${thisYear}-${String(monthNum).padStart(2, "0")}`)) return false;
     }
     return true;
   });
@@ -180,7 +185,7 @@ export default function Finances() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <StatCard label="This month" value={formatKES(thisMonthIncome)} trend={Number(change)} trendLabel="vs last month" color="green" linkTo="/analytics" timeline={monthlyRevenue.map((m) => ({ label: m.month, value: m.revenue }))} />
-              <StatCard label="Last month" value={formatKES(lastMonthIncome)} trendLabel="May 2026" color="blue" />
+              <StatCard label="Last month" value={formatKES(lastMonthIncome)} trendLabel={`${MONTHS[Number(lastMonth)]} ${thisYear}`} color="blue" />
               <StatCard label="Outstanding" value={formatKES(thisMonthOutstanding)} trendLabel={`${unpaidClients.length} client${unpaidClients.length !== 1 ? "s" : ""} owe`} color="red" />
               <StatCard label="Collected %" value={`${thisMonthIncome > 0 ? ((thisMonthIncome - thisMonthOutstanding) / thisMonthIncome * 100).toFixed(0) : 0}%`} trendLabel="This month" color="amber" />
             </div>
@@ -304,15 +309,7 @@ export default function Finances() {
           <>
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-400 dark:text-slate-500">{invoices.length} invoices · {formatKES(invoices.reduce((s, i) => s + i.amount, 0))} total</p>
-              <button onClick={() => {
-                const name = prompt("Client name:", "");
-                if (!name) return;
-                const amount = prompt("Amount (KES):", "");
-                if (!amount) return;
-                const desc = prompt("Description:", "");
-                addInvoice({ clientName: name, amount: Number(amount), status: "draft", issued: new Date().toISOString().slice(0, 10), due: "", paidAt: null, description: desc || "" });
-                toast.success("Invoice created");
-              }} className="flex items-center gap-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg px-3 py-1.5 hover:bg-amber-500 transition-colors"><IoAdd /> Create invoice</button>
+              <button onClick={() => { setInvoiceForm({ clientName: "", amount: "", description: "", due: "" }); setInvoiceModalOpen(true); }} className="flex items-center gap-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg px-3 py-1.5 hover:bg-amber-500 transition-colors"><IoAdd /> Create invoice</button>
             </div>
             <ChartCard title="All invoices">
               {invoices.length === 0 ? (
@@ -375,6 +372,27 @@ export default function Finances() {
           <div className="flex items-center justify-end gap-2 pt-2">
             <button onClick={() => setExpenseModalOpen(false)} className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 px-3 py-1.5">Cancel</button>
             <button onClick={handleAddExpense} className="text-xs font-medium bg-amber-600 text-white rounded-lg px-4 py-1.5 hover:bg-amber-500 transition-colors">Save</button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} title="Create invoice">
+        <div className="space-y-3">
+          <select value={invoiceForm.clientName} onChange={(e) => setInvoiceForm((p) => ({ ...p, clientName: e.target.value }))} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-[#0f172a] text-gray-700 dark:text-slate-300 focus:outline-none focus:border-amber-400">
+            <option value="">Select client</option>
+            {clientOptions.map((name) => (<option key={name} value={name}>{name}</option>))}
+          </select>
+          <input type="number" placeholder="Amount (KES)" value={invoiceForm.amount} onChange={(e) => setInvoiceForm((p) => ({ ...p, amount: e.target.value }))} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400" />
+          <input type="text" placeholder="Description" value={invoiceForm.description} onChange={(e) => setInvoiceForm((p) => ({ ...p, description: e.target.value }))} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400" />
+          <input type="date" value={invoiceForm.due} onChange={(e) => setInvoiceForm((p) => ({ ...p, due: e.target.value }))} className="w-full text-sm border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-white dark:bg-[#0f172a] text-gray-900 dark:text-white focus:outline-none focus:border-amber-400" />
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button onClick={() => setInvoiceModalOpen(false)} className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 px-3 py-1.5">Cancel</button>
+            <button onClick={() => {
+              if (!invoiceForm.clientName || !invoiceForm.amount) return;
+              addInvoice({ clientName: invoiceForm.clientName, amount: Number(invoiceForm.amount), status: "draft", issued: new Date().toISOString().slice(0, 10), due: invoiceForm.due || null, paidAt: null, description: invoiceForm.description || "" });
+              setInvoiceModalOpen(false);
+              toast.success("Invoice created");
+            }} className="text-xs font-medium bg-amber-600 text-white rounded-lg px-4 py-1.5 hover:bg-amber-500 transition-colors">Save</button>
           </div>
         </div>
       </Modal>

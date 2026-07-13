@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoCalendarOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline } from "react-icons/io5";
 import { HiOutlineSquares2X2 } from "react-icons/hi2";
+import Tooltip from "../Tooltip";
 
 const groups = [
   {
@@ -83,7 +84,7 @@ export default function Sidebar({ open, onClose }) {
       <aside
         className={`
           h-screen bg-[#0f172a] border-r border-white/10
-          flex flex-col flex-shrink-0 overflow-hidden
+          flex flex-col flex-shrink-0
           fixed lg:static z-40 inset-y-0 left-0
           transition-all duration-200
           rounded-r-[28px]
@@ -106,7 +107,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-2 flex flex-col gap-3 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 p-2 flex flex-col gap-3 overflow-y-auto">
           {groups.map((group) => (
             <div key={group.label}>
               {!collapsed && (
@@ -115,18 +116,26 @@ export default function Sidebar({ open, onClose }) {
                 </p>
               )}
               <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    end={item.path === "/"}
-                    onClick={onClose}
-                    className={navLinkClass}
-                  >
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                ))}
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === "/"}
+                      onClick={onClose}
+                      className={navLinkClass}
+                    >
+                      {collapsed ? (
+                        <Tooltip label={item.label}>
+                          <span className="flex-shrink-0">{item.icon}</span>
+                        </Tooltip>
+                      ) : (
+                        <>
+                          <span className="flex-shrink-0">{item.icon}</span>
+                          <span className="truncate">{item.label}</span>
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
               </div>
             </div>
           ))}
@@ -138,15 +147,31 @@ export default function Sidebar({ open, onClose }) {
             onClick={toggleDark}
             className={`flex items-center gap-3 rounded-xl text-sm transition-all duration-150 text-slate-400 hover:bg-white/[0.05] hover:text-white ${collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2"}`}
           >
-            <span className="flex-shrink-0">{dark ? <IoSunny size={18} /> : <IoMoon size={18} />}</span>
-            {!collapsed && <span className="truncate">{dark ? "Light mode" : "Dark mode"}</span>}
+            {collapsed ? (
+              <Tooltip label={dark ? "Light mode" : "Dark mode"}>
+                <span className="flex-shrink-0">{dark ? <IoSunny size={18} /> : <IoMoon size={18} />}</span>
+              </Tooltip>
+            ) : (
+              <>
+                <span className="flex-shrink-0">{dark ? <IoSunny size={18} /> : <IoMoon size={18} />}</span>
+                <span className="truncate">{dark ? "Light mode" : "Dark mode"}</span>
+              </>
+            )}
           </button>
           <button
             onClick={() => setCollapsed((v) => !v)}
             className={`hidden lg:flex items-center gap-3 rounded-xl text-sm transition-all duration-150 text-slate-400 hover:bg-white/[0.05] hover:text-white ${collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2"}`}
           >
-            <span className="flex-shrink-0">{collapsed ? <IoChevronForward size={18} /> : <IoChevronBack size={18} />}</span>
-            {!collapsed && <span className="truncate">Collapse</span>}
+            {collapsed ? (
+              <Tooltip label="Expand sidebar">
+                <span className="flex-shrink-0">{<IoChevronForward size={18} />}</span>
+              </Tooltip>
+            ) : (
+              <>
+                <span className="flex-shrink-0">{<IoChevronBack size={18} />}</span>
+                <span className="truncate">Collapse</span>
+              </>
+            )}
           </button>
         </div>
       </aside>

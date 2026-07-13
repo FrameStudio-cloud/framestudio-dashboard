@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node -e \"const{execSync}=require('child_process');const s=execSync('git status --porcelain',{encoding:'utf8'});if(s.trim()){console.log('\\u26a0\\ufe0f  Uncommitted changes detected. Commit or stash before git operations to avoid losing work.'+(process.argv[1]||''))}\"",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -12,7 +13,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
     "@tailwindcss/vite": "^4.3.0",
-    "@tanstack/react-query": "^5.101.0",
     "cite-ui": "^1.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

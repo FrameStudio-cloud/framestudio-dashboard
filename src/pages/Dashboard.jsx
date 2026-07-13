@@ -7,7 +7,6 @@ import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
 import { useData } from "../context/DataContext";
-import { mockKeelPulse, monthlyRevenue, monthlyComparison, allTimeStats } from "../data/mock";
 
 function formatKES(amount) {
   return `KES ${(amount || 0).toLocaleString()}`;
@@ -46,9 +45,13 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { clients, income, focusItems, activityFeed } = useData();
+  const { clients, income, focusItems, activityFeed, keelShops, monthlyRevenue, monthlyComparison, allTimeStats, activeShopsCount } = useData();
 
   const [chartMode, setChartMode] = useState("month");
+
+  const thisYear = new Date().getFullYear();
+  const thisMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+  const lastMonth = String(new Date().getMonth()).padStart(2, "0");
 
   const weekData = [
     { day: "Mon", revenue: 4000 },
@@ -63,8 +66,8 @@ export default function Dashboard() {
   const chartData = chartMode === "week" ? weekData : monthlyRevenue;
   const chartDataKey = chartMode === "week" ? "day" : "month";
 
-  const thisMonthIncome = income.filter((i) => i.date.startsWith("2026-06")).reduce((s, i) => s + i.amount, 0);
-  const lastMonthIncome = income.filter((i) => i.date.startsWith("2026-05")).reduce((s, i) => s + i.amount, 0);
+  const thisMonthIncome = income.filter((i) => i.date.startsWith(`${thisYear}-${thisMonth}`)).reduce((s, i) => s + i.amount, 0);
+  const lastMonthIncome = income.filter((i) => i.date.startsWith(`${thisYear}-${lastMonth}`)).reduce((s, i) => s + i.amount, 0);
 
   const pendingTotal = clients.filter((c) => c.invoiceStatus === "pending" || c.invoiceStatus === "partial").reduce((s, c) => {
     if (c.invoiceStatus === "pending") return s + c.projectValue;
@@ -73,7 +76,7 @@ export default function Dashboard() {
   }, 0);
 
   const activeClients = clients.filter((c) => c.projectStatus !== "planning").length;
-  const { activeShops, pendingApprovals } = mockKeelPulse;
+  const pendingApprovals = keelShops.filter((s) => s.status === "pending").length;
   const pendingClients = clients.filter((c) => c.invoiceStatus !== "paid").length;
   const todayFocus = focusItems.filter((f) => !f.completed && f.status !== "done");
   const completedCount = focusItems.filter((f) => f.completed || f.status === "done").length;
@@ -104,7 +107,7 @@ export default function Dashboard() {
           <StatCard label="Total revenue" value={formatKES(thisMonthIncome)} trend={trend} trendLabel="vs last month" color="green" linkTo="/finances" timeline={monthlyRevenue.map((m) => ({ label: m.month, value: m.revenue }))} />
           <StatCard label="Pending payments" value={formatKES(pendingTotal)} linkTo="/finances" color="red" trendLabel={`${pendingClients} client${pendingClients !== 1 ? "s" : ""}`} timeline={monthlyComparison.map((m) => ({ label: m.month, value: m.outstanding }))} />
           <StatCard label="Active clients" value={activeClients} linkTo="/clients" color="blue" timeline={allTimeStats.clientAcquisition.map((m) => ({ label: m.month, value: m.newClients * 5 }))} />
-          <StatCard label="Keel shops" value={`${activeShops} active`} linkTo="/keel" color="purple" trendLabel={`${pendingApprovals} pending`} />
+          <StatCard label="Keel shops" value={`${activeShopsCount} active`} linkTo="/keel" color="purple" trendLabel={`${pendingApprovals} pending`} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,15 +1,11 @@
 import { lazy, Suspense, useContext, useState } from "react";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FiLock } from "react-icons/fi";
 import { Icon, Alert, ToastProvider } from "cite-ui";
 import AuthProvider, { AuthContext } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 import { supabase } from "./lib/supabase";
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
-});
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Clients = lazy(() => import("./pages/Clients"));
@@ -165,19 +161,21 @@ function AppContent() {
   return (
     <Suspense fallback={<Loading />}>
       <DataProvider>
-        <Routes>
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-          <Route path="/links" element={<ProtectedRoute><Links /></ProtectedRoute>} />
-          <Route path="/finances" element={<ProtectedRoute><Finances /></ProtectedRoute>} />
-          <Route path="/keel" element={<ProtectedRoute><KeelPulse /></ProtectedRoute>} />
-          <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
-          <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
-          <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+            <Route path="/links" element={<ProtectedRoute><Links /></ProtectedRoute>} />
+            <Route path="/finances" element={<ProtectedRoute><Finances /></ProtectedRoute>} />
+            <Route path="/keel" element={<ProtectedRoute><KeelPulse /></ProtectedRoute>} />
+            <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
+            <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </DataProvider>
     </Suspense>
   );
@@ -185,14 +183,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <ToastProvider position="top-right">
-            <AppContent />
-          </ToastProvider>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <BrowserRouter>
+        <ToastProvider position="top-right">
+          <AppContent />
+        </ToastProvider>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { supabaseKeel } from "../lib/supabaseKeel";
 import { mockClients, mockLinks, mockIncome, mockFocusItems, mockExpenses, mockInvoices, mockActivityFeed, mockNotifications, mockKeelPulse } from "../data/mock";
@@ -493,6 +493,113 @@ export function DataProvider({ children }) {
     }
   }, [keelShops, supabaseKeel]);
 
+  const monthlyRevenue = useMemo(() => {
+    const map = {};
+    income.forEach((i) => {
+      const m = i.date ? i.date.slice(0, 7) : "unknown";
+      map[m] = (map[m] || 0) + i.amount;
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([month, revenue]) => ({ month, revenue }));
+  }, [income]);
+
+  const revenueByClient = useMemo(() => {
+    const map = {};
+    income.forEach((i) => {
+      const name = i.clientName || "Unknown";
+      map[name] = (map[name] || 0) + i.amount;
+    });
+    return Object.entries(map).map(([client, revenue]) => ({ client, revenue }));
+  }, [income]);
+
+  const clientStatusBreakdown = useMemo(() => {
+    const stages = ["lead", "discovery", "proposal", "development", "launch", "completed"];
+    return stages.map((stage) => ({ status: stage, count: clients.filter((c) => c.stage === stage).length }));
+  }, [clients]);
+
+  const invoiceStatusDistribution = useMemo(() => {
+    const counts = { draft: 0, sent: 0, paid: 0, overdue: 0, cancelled: 0 };
+    invoices.forEach((inv) => { counts[inv.status] = (counts[inv.status] || 0) + 1; });
+    return Object.entries(counts).map(([status, count]) => ({ status, count }));
+  }, [invoices]);
+
+  const monthlyComparison = useMemo(() => {
+    const months = {};
+    income.forEach((i) => {
+      const m = i.date ? i.date.slice(0, 7) : "unknown";
+      months[m] = months[m] || { month: m, collected: 0, outstanding: 0 };
+      months[m].collected += i.amount;
+    });
+    invoices.forEach((inv) => {
+      const m = inv.issued ? inv.issued.slice(0, 7) : "unknown";
+      months[m] = months[m] || { month: m, collected: 0, outstanding: 0 };
+      if (inv.status !== "paid") months[m].outstanding += inv.amount;
+    });
+    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
+  }, [income, invoices]);
+
+  const clientAcquisition = useMemo(() => {
+    const byMonth = {};
+    clients.forEach((c) => {
+      const m = c.createdAt ? c.createdAt.slice(0, 7) : "unknown";
+      byMonth[m] = (byMonth[m] || 0) + 1;
+    });
+    return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).map(([month, newClients]) => {
+      const shortMonth = new Date(month + "-01").toLocaleString("en", { month: "short", timeZone: "UTC" });
+      return { month: shortMonth, newClients };
+    });
+  }, [clients]);
+
+  const allTimeStats = useMemo(() => {
+    const sorted = [...monthlyRevenue].sort((a, b) => b.revenue - a.revenue);
+    return {
+      totalRevenue: income.reduce((s, i) => s + i.amount, 0),
+      totalClients: clients.length,
+      totalInvoices: invoices.length,
+      totalInvoiced: invoices.reduce((s, i) => s + i.amount, 0),
+      totalPaid: invoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0),
+      totalLinks: links.length,
+      avgProjectValue: clients.length > 0 ? Math.round(income.reduce((s, i) => s + i.amount, 0) / clients.length) : 0,
+      totalProjects: new Set(focusItems.map((f) => f.project).filter(Boolean)).size,
+      tasksCompleted: focusItems.filter((f) => f.status === "done").length,
+      totalTasks: focusItems.length,
+      activeShops: keelShops.filter((s) => s.status === "active").length,
+      totalShops: keelShops.length,
+      clientAcquisition,
+      bestMonth: sorted[0] || { month: "", revenue: 0 },
+      worstMonth: sorted[sorted.length - 1] || { month: "", revenue: 0 },
+    };
+  }, [income, clients, invoices, links, focusItems, keelShops, clientAcquisition, monthlyRevenue]);
+
+  const tasksByProject = useMemo(() => {
+    const map = {};
+    focusItems.forEach((f) => {
+      const p = f.project || "General";
+      map[p] = map[p] || [];
+      map[p].push(f);
+    });
+    return Object.entries(map).map(([project, tasks]) => ({ project, tasks }));
+  }, [focusItems]);
+
+  const revenueByPlan = useMemo(() => {
+    const map = {};
+    keelShops.forEach((s) => {
+      const p = s.plan || "Free";
+      map[p] = (map[p] || 0) + 1;
+    });
+    return Object.entries(map).map(([plan, shops]) => ({ plan, shops }));
+  }, [keelShops]);
+
+  const activeShopsCount = keelShops.filter((s) => s.status === "active").length;
+
+  const monthOverMonthGrowth = useMemo(() => {
+    const sorted = [...monthlyRevenue].sort((a, b) => a.month.localeCompare(b.month));
+    return sorted.map((m, i) => ({
+      month: m.month,
+      revenue: m.revenue,
+      growth: i > 0 && sorted[i - 1].revenue > 0 ? ((m.revenue - sorted[i - 1].revenue) / sorted[i - 1].revenue * 100).toFixed(1) : null,
+    }));
+  }, [monthlyRevenue]);
+
   return (
     <DataContext.Provider value={{
       ready, clients, links, income, expenses, invoices, focusItems, activityFeed, notifications,
@@ -507,6 +614,8 @@ export function DataProvider({ children }) {
       markNotificationRead, markAllNotificationsRead,
       renewShop, deleteShop, setShopPlan,
       addAnnouncement, updateAnnouncement, deleteAnnouncement,
+      monthlyRevenue, revenueByClient, clientStatusBreakdown, invoiceStatusDistribution,
+      monthlyComparison, allTimeStats, tasksByProject, revenueByPlan, monthOverMonthGrowth, activeShopsCount,
     }}>
       {!ready ? (
         <div className="flex items-center justify-center h-screen bg-slate-100 dark:bg-[#0f172a]">

@@ -5,7 +5,7 @@ import PageLayout from "../components/layout/PageLayout";
 import ChartCard from "../components/ChartCard";
 import { useData } from "../context/DataContext";
 import { useToast } from "cite-ui";
-import { monthlyRevenue, monthlyComparison, revenueByServiceType } from "../data/mock";
+import { revenueByServiceType } from "../data/mock";
 
 function formatKES(amount) {
   return `KES ${amount.toLocaleString()}`;
@@ -66,7 +66,7 @@ function generatePDF(title, content) {
 }
 
 export default function Reports() {
-  const { clients, income, invoices, expenses } = useData();
+  const { clients, income, invoices, expenses, monthlyRevenue, monthlyComparison } = useData();
   const [activeReport, setActiveReport] = useState("monthly");
   const { toast } = useToast();
   const [clientFilter, setClientFilter] = useState("all");

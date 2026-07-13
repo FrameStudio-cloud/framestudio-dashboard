@@ -19,7 +19,7 @@ import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useData } from "../context/DataContext";
 import { useToast } from "cite-ui";
-import { revenueByPlan } from "../data/mock";
+
 
 function formatKES(amount) {
   return `KES ${amount.toLocaleString()}`;
@@ -66,7 +66,7 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, setShopPlan, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
+  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, setShopPlan, addAnnouncement, updateAnnouncement, deleteAnnouncement, revenueByPlan } = useData();
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
@@ -89,19 +89,21 @@ export default function KeelPulse() {
   }, []);
 
   useEffect(() => {
-    if (!announcements.length) { setDismissalCounts({}); return; }
+    let cancelled = false;
     (async () => {
+      if (!announcements.length) { if (!cancelled) setDismissalCounts({}); return; }
       const { data } = await supabaseKeel
         .from("announcement_dismissals")
         .select("announcement_id")
         .in("announcement_id", announcements.map((a) => a.id));
       const counts = {};
       (data || []).forEach((d) => { counts[d.announcement_id] = (counts[d.announcement_id] || 0) + 1; });
-      setDismissalCounts(counts);
+      if (!cancelled) setDismissalCounts(counts);
     })();
+    return () => { cancelled = true; };
   }, [announcements]);
 
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
 
   const shopsWithStatus = useMemo(() => keelShops.map((s) => {
@@ -109,7 +111,7 @@ export default function KeelPulse() {
     const isExpired = s.status === "expired" || (expiresAt && expiresAt < now);
     const isExpiringSoon = !isExpired && expiresAt && expiresAt < now + sevenDays;
     return { ...s, expiresAt, isExpired, isExpiringSoon };
-  }), [keelShops]);
+  }), [keelShops, now, sevenDays]);
 
   const activeShops = useMemo(() => shopsWithStatus.filter((s) => !s.isExpired && !s.isExpiringSoon && s.status === "active").length, [shopsWithStatus]);
   const expiredCount = useMemo(() => shopsWithStatus.filter((s) => s.isExpired).length, [shopsWithStatus]);
@@ -127,6 +129,13 @@ export default function KeelPulse() {
     setRenewingShop(null);
     toast.success(`Subscription renewed for ${days} days`);
   }
+
+  const announcementsWithStatus = useMemo(() => announcements.map((a) => {
+    const startsTs = a.startsAt ? new Date(a.startsAt).getTime() : 0;
+    const expiresTs = a.expiresAt ? new Date(a.expiresAt).getTime() : null;
+    const isActive = a.active !== false && startsTs <= now && (!expiresTs || expiresTs > now);
+    return { ...a, isActive };
+  }), [announcements, now]);
 
   return (
     <PageLayout title="Keel Pulse">
@@ -337,11 +346,7 @@ export default function KeelPulse() {
             </button>
           </div>
           <div className="space-y-2">
-            {announcements.map((a) => {
-              const now = Date.now();
-              const startsAt = a.startsAt ? new Date(a.startsAt).getTime() : 0;
-              const expiresAt = a.expiresAt ? new Date(a.expiresAt).getTime() : null;
-              const isActive = a.active !== false && startsAt <= now && (!expiresAt || expiresAt > now);
+            {announcementsWithStatus.map((a) => {
               const v = announcementVariants.find((x) => x.key === a.variant) || announcementVariants[0];
               const VIcon = v.icon;
               return (

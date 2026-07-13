@@ -8,7 +8,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import FocusItemForm from "../components/forms/FocusItemForm";
 import { useData } from "../context/DataContext";
 import { useToast } from "cite-ui";
-import { weeklyCompletion, tasksByProject } from "../data/mock";
+import { weeklyCompletion } from "../data/mock";
 
 const CHART_COLORS = ["#d97706", "#f59e0b", "#fbbf24", "#fcd34d"];
 
@@ -32,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const todayStr = new Date().toISOString().slice(0, 10);
 
 export default function Focus() {
-  const { focusItems, clients, addFocusItem, updateFocusItem, toggleFocusItem, deleteFocusItem, reorderFocusItems } = useData();
+  const { focusItems, clients, addFocusItem, updateFocusItem, toggleFocusItem, deleteFocusItem, reorderFocusItems, tasksByProject } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");

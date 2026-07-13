@@ -3,7 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import PageLayout from "../components/layout/PageLayout";
 import StatCard from "../components/StatCard";
 import ChartCard from "../components/ChartCard";
-import { monthlyRevenue, allTimeStats, revenueByServiceType, monthOverMonthGrowth, revenueByClient } from "../data/mock";
+import { useData } from "../context/DataContext";
+import { revenueByServiceType } from "../data/mock";
 
 function formatKES(amount) {
   return `KES ${amount.toLocaleString()}`;
@@ -25,6 +26,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Analytics() {
   const navigate = useNavigate();
+  const { monthlyRevenue, allTimeStats, monthOverMonthGrowth, revenueByClient } = useData();
   const { totalRevenue, totalClients, totalProjects, avgProjectValue, clientAcquisition, bestMonth, worstMonth } = allTimeStats;
 
   const cumulativeRevenue = monthlyRevenue.reduce((acc, curr) => {
