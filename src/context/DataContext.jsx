@@ -614,19 +614,21 @@ export function DataProvider({ children }) {
     const shop = keelShops.find((s) => s.id === id);
     if (!shop || !["free", "starter", "beta", "pro"].includes(plan)) return;
     if (supabaseKeel) {
-      await supabaseKeel.from("keel_shops").update({ plan }).eq("id", id);
-      const { data: existing } = await supabaseKeel.from("chat_config").select("id").eq("shop_id", id).maybeSingle();
+      try {
+        await supabaseKeel.from("keel_shops").update({ plan }).eq("id", id);
+      } catch {
+        // merged shops may not have a keel_shops row — non-critical
+      }
       const chatUpdate = { plan_tier: plan };
       if (plan === "pro") {
         chatUpdate.pro_until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       } else {
         chatUpdate.pro_until = null;
       }
-      if (existing) {
-        await supabaseKeel.from("chat_config").update(chatUpdate).eq("id", existing.id);
-      } else {
-        await supabaseKeel.from("chat_config").insert({ shop_id: id, enabled: true, ...chatUpdate });
-      }
+      await supabaseKeel.from("chat_config").upsert(
+        { shop_id: id, enabled: true, ...chatUpdate },
+        { onConflict: "shop_id" }
+      );
       const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
         action: "subscription", shop: shop.name, detail: `Plan changed to ${plan} by admin`, timestamp: new Date().toISOString(),
       }).select().single();
