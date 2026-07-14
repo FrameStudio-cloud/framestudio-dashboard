@@ -245,12 +245,12 @@ export default function KeelPulse() {
                               </button>
                             )}
                             {!shop.isExpired && (
-                              <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
-                                <FiLock size={13} />
+                              <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-2 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
+                                <FiLock size={16} />
                               </button>
                             )}
-                            <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
-                              <IoTrashOutline size={13} />
+                            <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
+                              <IoTrashOutline size={16} />
                             </button>
                           </div>
                         </td>
@@ -267,12 +267,12 @@ export default function KeelPulse() {
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
                         {!shop.isExpired && (
-                          <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
-                            <FiLock size={12} />
+                          <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
+                            <FiLock size={15} />
                           </button>
                         )}
-                        <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
-                          <IoTrashOutline size={12} />
+                        <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
+                          <IoTrashOutline size={15} />
                         </button>
                       </div>
                     </div>
@@ -588,6 +588,7 @@ export default function KeelPulse() {
         title="Lock shop?"
         message={`Expire subscription for "${confirmLock?.name}"? They'll see a lockout screen until renewed.`}
         confirmDanger
+        confirmText="Lock"
       />
     </PageLayout>
   );
