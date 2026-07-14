@@ -635,6 +635,50 @@ const dbSetupNodes = [
   flowNode("db-live", "state", "Site Live", "public-facing store with live data", 340, 780),
 ];
 
+// ─── Keel Ecosystem Architecture ────────────────────────────────────
+const keelEcosystemNodes = [
+  flowNode("keel-owner", "trigger", "Shop Owner", "Manages shop via dashboard", 160, 10),
+  flowNode("keel-customer", "trigger", "Customer", "Browses storefront, shops", 740, 10),
+
+  flowNode("keel-dashboard", "page", "Keel Dashboard", "React v4, 16+ routes, Tailwind v4", 160, 120, 220),
+  flowNode("keel-storefront", "page", "keel-storefront-*", "Public sites: Zuri, Electricals, Wix", 740, 120, 240),
+
+  flowNode("keel-manage", "action", "Manage Shop", "Inventory, Sales, Settings, Content", 40, 260, 210),
+  flowNode("keel-provision", "action", "Provision Storefront", "Pick template → set subdomain → deploy", 320, 260, 230),
+  flowNode("keel-provisioner", "service", "storefront-provisioner", "Railway, Express + EJS, auto-deploy", 580, 260, 250),
+  flowNode("keel-vercel", "service", "Vercel API", "createProject / deploy / DNS domain", 860, 260, 230),
+
+  flowNode("keel-cart", "action", "Cart & WhatsApp Orders", "CartDrawer, WhatsAppFloat CTA", 740, 380, 230),
+  flowNode("keel-chat", "action", "Chat Widget (Pro)", "Groq AI, FAQ, callbacks, stock alerts", 740, 500, 240),
+
+  flowNode("keel-api", "service", "keel-api", "Hono.js gateway, Railway, service_role key", 380, 460, 250),
+  flowNode("keel-supabase", "database", "Supabase (shared DB)", "Multi-tenant via shop_id, no RLS", 580, 460, 250),
+
+  flowNode("keel-fsdash", "page", "FrameStudio Dashboard", "Admin Keel Pulse oversight", 160, 460, 230),
+  flowNode("keel-pulse", "action", "Keel Pulse", "Shops, Announcements, Activity Log", 160, 600, 210),
+];
+
+const keelEcosystemEdges = [
+  { id: "kee1", fromTable: "keel-owner", toTable: "keel-dashboard" },
+  { id: "kee2", fromTable: "keel-customer", toTable: "keel-storefront" },
+  { id: "kee3", fromTable: "keel-dashboard", toTable: "keel-manage" },
+  { id: "kee4", fromTable: "keel-dashboard", toTable: "keel-provision" },
+  { id: "kee5", fromTable: "keel-provision", toTable: "keel-provisioner", label: "POST /provision" },
+  { id: "kee6", fromTable: "keel-provisioner", toTable: "keel-vercel" },
+  { id: "kee7", fromTable: "keel-provisioner", toTable: "keel-supabase", label: "reads + writes deployments" },
+  { id: "kee8", fromTable: "keel-manage", toTable: "keel-supabase", label: "CRUD" },
+  { id: "kee9", fromTable: "keel-storefront", toTable: "keel-cart" },
+  { id: "kee10", fromTable: "keel-storefront", toTable: "keel-chat", label: "Runtime" },
+  { id: "kee11", fromTable: "keel-storefront", toTable: "keel-api", label: "Build time reads" },
+  { id: "kee12", fromTable: "keel-chat", toTable: "keel-api", label: "Groq AI" },
+  { id: "kee13", fromTable: "keel-api", toTable: "keel-supabase" },
+  { id: "kee14", fromTable: "keel-cart", toTable: "keel-api", label: "Orders" },
+  { id: "kee15", fromTable: "keel-fsdash", toTable: "keel-pulse" },
+  { id: "kee16", fromTable: "keel-pulse", toTable: "keel-supabase" },
+  { id: "kee17", fromTable: "keel-vercel", toTable: "keel-storefront", label: "Deploys" },
+  { id: "kee18", fromTable: "keel-dashboard", toTable: "keel-api", label: "Migrating" },
+];
+
 const dbSetupEdges = [
   { id: "dbe1", fromTable: "db-trigger", toTable: "db-create" },
   { id: "dbe2", fromTable: "db-create", toTable: "db-migrate" },
@@ -795,5 +839,15 @@ export const defaultDiagrams = [
     zoom: 0.85,
     tables: dbSetupNodes,
     relationships: dbSetupEdges,
+  },
+  {
+    id: "keel-ecosystem",
+    name: "Keel Ecosystem",
+    description: "Three-service architecture: Keel Dashboard, storefront-provisioner, keel-storefronts, and keel-api gateways",
+    diagramType: "flow",
+    projectRef: "hmcowpwfefeeossztuem",
+    zoom: 0.72,
+    tables: keelEcosystemNodes,
+    relationships: keelEcosystemEdges,
   },
 ];
