@@ -583,6 +583,25 @@ export function DataProvider({ children }) {
     removeLocal(setKeelShops, id);
   }, [supabaseKeel, keelShops, removeLocal]);
 
+  const lockShop = useCallback(async (id) => {
+    const shop = keelShops.find((s) => s.id === id);
+    if (!shop) return;
+    const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    if (supabaseKeel) {
+      await supabaseKeel.from("shops").update({ subscription_expires_at: pastDate }).eq("id", id);
+      await supabaseKeel.from("keel_shops").update({ status: "expired", subscription_expires_at: pastDate }).eq("id", id);
+      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
+        action: "expiry", shop: shop.name, detail: "Locked by admin", timestamp: new Date().toISOString(),
+      }).select().single();
+      if (logEntry) {
+        const c = toCamelCase(logEntry);
+        setKeelActivityLog((prev) => [c, ...prev]);
+        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+      }
+    }
+    setKeelShops((prev) => prev.map((s) => s.id === id ? { ...s, status: "expired", subscriptionExpiresAt: pastDate } : s));
+  }, [keelShops, supabaseKeel]);
+
   // --- ANNOUNCEMENTS ---
   const addAnnouncement = useCallback(async (data) => {
     if (supabaseKeel) {
@@ -762,7 +781,7 @@ export function DataProvider({ children }) {
       addFocusItem, updateFocusItem, toggleFocusItem, reorderFocusItems, deleteFocusItem,
       pushActivity, pushNotification,
       markNotificationRead, markAllNotificationsRead,
-      renewShop, deleteShop, setShopPlan,
+      renewShop, deleteShop, lockShop, setShopPlan,
       addAnnouncement, updateAnnouncement, deleteAnnouncement,
       schemaDiagrams, upsertDiagram, deleteDiagram,
       monthlyRevenue, revenueByClient, clientStatusBreakdown, invoiceStatusDistribution,

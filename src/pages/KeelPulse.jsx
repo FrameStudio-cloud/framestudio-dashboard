@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { IoPulseOutline, IoReload, IoAdd, IoTrashOutline, IoCreateOutline } from "react-icons/io5";
-import { FiInfo, FiAlertTriangle, FiAlertOctagon, FiTag, FiTool, FiCheck } from "react-icons/fi";
+import { FiInfo, FiAlertTriangle, FiAlertOctagon, FiTag, FiTool, FiCheck, FiLock } from "react-icons/fi";
 import { supabaseKeel } from "../lib/supabaseKeel";
 
 const announcementVariants = [
@@ -66,7 +66,7 @@ const actionIcons = {
 };
 
 export default function KeelPulse() {
-  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, setShopPlan, addAnnouncement, updateAnnouncement, deleteAnnouncement, revenueByPlan } = useData();
+  const { keelShops, keelActivityLog, announcements, renewShop, deleteShop, lockShop, setShopPlan, addAnnouncement, updateAnnouncement, deleteAnnouncement, revenueByPlan } = useData();
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
@@ -74,6 +74,7 @@ export default function KeelPulse() {
   const [renewingShop, setRenewingShop] = useState(null);
   const [planStatus, setPlanStatus] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmLock, setConfirmLock] = useState(null);
   const { toast } = useToast();
   const [dismissalCounts, setDismissalCounts] = useState({});
 
@@ -243,6 +244,11 @@ export default function KeelPulse() {
                                 <IoReload size={11} /> Renew
                               </button>
                             )}
+                            {!shop.isExpired && (
+                              <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
+                                <FiLock size={13} />
+                              </button>
+                            )}
                             <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
                               <IoTrashOutline size={13} />
                             </button>
@@ -260,6 +266,11 @@ export default function KeelPulse() {
                       <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
+                        {!shop.isExpired && (
+                          <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
+                            <FiLock size={12} />
+                          </button>
+                        )}
                         <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
                           <IoTrashOutline size={12} />
                         </button>
@@ -568,6 +579,14 @@ export default function KeelPulse() {
         onConfirm={() => { deleteShop(confirmDelete.id); toast.success("Shop deleted"); }}
         title="Delete shop?"
         message={`Remove "${confirmDelete?.name}" and all associated data permanently?`}
+        confirmDanger
+      />
+      <ConfirmDialog
+        open={!!confirmLock}
+        onClose={() => setConfirmLock(null)}
+        onConfirm={() => { lockShop(confirmLock.id); toast.success("Shop locked"); }}
+        title="Lock shop?"
+        message={`Expire subscription for "${confirmLock?.name}"? They'll see a lockout screen until renewed.`}
         confirmDanger
       />
     </PageLayout>
