@@ -245,12 +245,12 @@ export default function KeelPulse() {
                               </button>
                             )}
                             {!shop.isExpired && (
-                              <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-2 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
-                                <FiLock size={16} />
+                              <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 rounded-lg px-2.5 py-1.5 hover:bg-amber-600 hover:text-white transition-colors">
+                                <FiLock size={11} /> Lock
                               </button>
                             )}
-                            <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
-                              <IoTrashOutline size={16} />
+                            <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-500/10 rounded-lg px-2.5 py-1.5 hover:bg-red-600 hover:text-white transition-colors">
+                              <IoTrashOutline size={11} /> Delete
                             </button>
                           </div>
                         </td>
@@ -267,12 +267,12 @@ export default function KeelPulse() {
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
                         {!shop.isExpired && (
-                          <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-all" title="Lock shop">
-                            <FiLock size={15} />
+                          <button onClick={() => setConfirmLock({ id: shop.id, name: shop.name })} className="flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 rounded-lg px-2 py-1 hover:bg-amber-600 hover:text-white transition-colors">
+                            <FiLock size={10} /> Lock
                           </button>
                         )}
-                        <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Delete shop">
-                          <IoTrashOutline size={15} />
+                        <button onClick={() => setConfirmDelete({ id: shop.id, name: shop.name })} className="flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-500/10 rounded-lg px-2 py-1 hover:bg-red-600 hover:text-white transition-colors">
+                          <IoTrashOutline size={10} /> Delete
                         </button>
                       </div>
                     </div>
