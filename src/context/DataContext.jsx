@@ -209,12 +209,22 @@ export function DataProvider({ children }) {
         // Also fetch from the main `shops` table (where mobile app signups land)
         const { data: appShops } = await supabaseKeel.from("shops").select("id, name, created_at, subscription_expires_at").is("scheduled_deletion_at", null).order("created_at", { ascending: false });
 
+        // Fetch user emails for shop identification
+        const { data: keelUsers } = await supabaseKeel.from("users").select("shop_id, email");
+        const emailByShopId = {};
+        (keelUsers || []).forEach((u) => { if (u.email) emailByShopId[u.shop_id] = u.email; });
+
         if (!cancelled) {
           keelResults.forEach((result, i) => {
             const key = keelTables[i].key;
             if (result.status === "fulfilled" && result.value.data) {
               const setter = { setKeelShops, setKeelActivityLog }[`set${key.charAt(0).toUpperCase() + key.slice(1)}`];
-              if (setter) setter(result.value.data.map(toCamelCase));
+              if (setter && key === "keelShops") {
+                const withEmail = result.value.data.map(toCamelCase).map((s) => ({ ...s, email: emailByShopId[s.id] || "" }));
+                setter(withEmail);
+              } else if (setter) {
+                setter(result.value.data.map(toCamelCase));
+              }
             }
           });
 
@@ -230,6 +240,7 @@ export function DataProvider({ children }) {
                   merged.push({
                     id: s.id,
                     name: s.name,
+                    email: emailByShopId[s.id] || "",
                     status: "active",
                     plan: "starter",
                     revenue: 0,
@@ -569,15 +580,26 @@ export function DataProvider({ children }) {
   const deleteShop = useCallback(async (id) => {
     const shop = keelShops.find((s) => s.id === id);
     if (supabaseKeel) {
-      await supabaseKeel.from("keel_shops").delete().eq("id", id);
-      await supabaseKeel.from("shops").update({ scheduled_deletion_at: new Date().toISOString() }).eq("id", id);
-      const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
-        action: "deleted", shop: shop?.name || "unknown", detail: "Shop deleted by admin", timestamp: new Date().toISOString(),
-      }).select().single();
-      if (logEntry) {
-        const c = toCamelCase(logEntry);
-        setKeelActivityLog((prev) => [c, ...prev]);
-        setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+      try {
+        await supabaseKeel.from("keel_shops").delete().eq("id", id);
+        await supabaseKeel.from("shops").update({ scheduled_deletion_at: new Date().toISOString() }).eq("id", id);
+        if (shop?.name) {
+          await supabaseKeel.from("shops").update({ scheduled_deletion_at: new Date().toISOString() }).eq("name", shop.name);
+        }
+      } catch (e) {
+        console.error("deleteShop Supabase error:", e);
+      }
+      try {
+        const { data: logEntry } = await supabaseKeel.from("keel_activity_log").insert({
+          action: "deleted", shop: shop?.name || "unknown", detail: "Shop deleted by admin", timestamp: new Date().toISOString(),
+        }).select().single();
+        if (logEntry) {
+          const c = toCamelCase(logEntry);
+          setKeelActivityLog((prev) => [c, ...prev]);
+          setActivityFeed((prev) => [{ id: c.id, type: "keel", message: `${c.shop} — ${c.detail}`, client: c.shop, timestamp: c.timestamp, link: "/keel" }, ...prev]);
+        }
+      } catch (e) {
+        console.error("deleteShop log insert error:", e);
       }
     }
     removeLocal(setKeelShops, id);

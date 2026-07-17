@@ -1,6 +1,9 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import OfflineIndicator from "../../pwa/offlineIndicator";
+import UpdatePrompt from "../../pwa/updatePrompt";
+import InstallPrompt from "../../pwa/installPrompt";
 
 export default function PageLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -12,6 +15,9 @@ export default function PageLayout({ children }) {
         <Topbar onToggleSidebar={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto p-5">{children}</main>
       </div>
+      <OfflineIndicator />
+      <UpdatePrompt />
+      <InstallPrompt />
     </div>
   );
 }

@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { NavLink } from "react-router-dom";
 import { IoGridOutline, IoPeopleOutline, IoLinkOutline, IoWalletOutline, IoPulseOutline, IoCheckboxOutline, IoCalendarOutline, IoChevronBack, IoChevronForward, IoSunny, IoMoon, IoStatsChartOutline, IoDocumentTextOutline, IoGitNetworkOutline } from "react-icons/io5";
 import { HiOutlineSquares2X2 } from "react-icons/hi2";
 import Tooltip from "../Tooltip";
+import { AuthContext } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const groups = [
   {
@@ -48,12 +50,21 @@ const groups = [
 ];
 
 export default function Sidebar({ open, onClose }) {
+  const { user } = useContext(AuthContext);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("fs-sidebar-collapsed") === "true";
   });
   const [dark, setDark] = useState(() => {
     return document.documentElement.classList.contains("dark");
   });
+
+  useEffect(() => {
+    const theme = user?.user_metadata?.theme;
+    if (theme === "dark" || theme === "light") {
+      setDark(theme === "dark");
+      document.documentElement.classList.toggle("dark", theme === "dark");
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     localStorage.setItem("fs-sidebar-collapsed", collapsed);
@@ -66,6 +77,9 @@ export default function Sidebar({ open, onClose }) {
     try {
       localStorage.setItem("theme", next ? "dark" : "light");
     } catch {}
+    if (user && supabase) {
+      supabase.auth.updateUser({ data: { theme: next ? "dark" : "light" } }).catch(() => {});
+    }
   };
 
   const navLinkClass = ({ isActive }) =>

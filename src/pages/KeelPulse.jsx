@@ -207,7 +207,10 @@ export default function KeelPulse() {
                   <tbody>
                     {shopsWithStatus.map((shop) => (
                       <tr key={shop.name} className={`border-b border-gray-50 dark:border-white/5 last:border-0 ${shop.isExpired ? "bg-red-50/30 dark:bg-red-900/5" : ""}`}>
-                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">{shop.name}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-800 dark:text-white">{shop.name}</p>
+                          {shop.email && <p className="text-[11px] text-gray-400 dark:text-slate-500 truncate max-w-[200px]">{shop.email}</p>}
+                        </td>
                         <td className="px-4 py-3">
                           {shop.isExpired ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded">Expired</span>
@@ -263,7 +266,10 @@ export default function KeelPulse() {
                 {shopsWithStatus.map((shop) => (
                   <div key={shop.name} className={`px-4 py-3 ${shop.isExpired ? "bg-red-50/30 dark:bg-red-900/5" : ""}`}>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800 dark:text-white">{shop.name}</p>
+                        {shop.email && <p className="text-[11px] text-gray-400 dark:text-slate-500">{shop.email}</p>}
+                      </div>
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{shop.revenue > 0 ? formatKES(shop.revenue) : "—"}</p>
                         {!shop.isExpired && (

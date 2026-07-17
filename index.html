@@ -6,9 +6,40 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#d97706" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FrameStudio" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="FrameStudio" />
+    <meta name="msapplication-TileColor" content="#d97706" />
+    <meta name="msapplication-TileImage" content="/pwa-192x192.png" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#d97706" />
+    <link rel="preconnect" href="https://sjhwllnhuozxeplpygnc.supabase.co" />
+    <link rel="preconnect" href="https://hmcowpwfefeeossztuem.supabase.co" />
+    <script>
+      (function() {
+        var theme = (function() { try { return localStorage.getItem("theme"); } catch {} })();
+        if (theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
     <title>FrameStudio — Admin</title>
+    <style>
+      body {
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        -webkit-tap-highlight-color: transparent;
+      }
+      @media (display-mode: standalone) {
+        body { user-select: none; -webkit-user-select: none; }
+        a, button, input, textarea, select { user-select: auto; -webkit-user-select: auto; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
